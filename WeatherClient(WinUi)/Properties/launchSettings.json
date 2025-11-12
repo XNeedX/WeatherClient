@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "WeatherClient(WinUi) (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "WeatherClient(WinUi) (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
