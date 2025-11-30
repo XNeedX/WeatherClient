@@ -5,7 +5,6 @@
     xmlns:local="using:WeatherClient">
 
     <Application.Resources>
-        <!-- Подключаем ресурсы WinUI -->
         <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
     </Application.Resources>
 </Application>
