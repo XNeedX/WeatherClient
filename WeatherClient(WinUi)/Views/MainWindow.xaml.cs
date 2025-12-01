@@ -1,11 +1,14 @@
 ﻿using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Animation;
-using WeatherClient.ViewModels;
+using ScottPlot.WinUI;
 using System;
 using System.Linq;
-using ScottPlot.WinUI;
+using System.Threading.Tasks;
+using WeatherClient.Models;
+using WeatherClient.ViewModels;
 
 namespace WeatherClient.Views
 {
@@ -17,6 +20,8 @@ namespace WeatherClient.Views
         public MainWindow()
         {
             this.InitializeComponent();
+            this.ExtendsContentIntoTitleBar = true;
+            this.SetTitleBar(null);
 
             DispatcherQueue? dq = this.DispatcherQueue;
             ViewModel = new MainViewModel(dq);
@@ -35,34 +40,24 @@ namespace WeatherClient.Views
             _firstActivationDone = true;
             this.Activated -= OnWindowActivated;
 
-            // ����� Navigate("Current") ������ ������ � ��������� � NavView_Loaded
-
             try
             {
-                // �������� ������ �������� �����, ��� ��� ��� �� ������� �� ���������
                 await ViewModel.GetWeatherAsync();
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"������ �������� ��� ���������: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки: {ex.Message}");
             }
         }
 
-        // --- ����������� �����: ��������� ����� �������� NavView ---
-        private void NavView_Loaded(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+        private void NavView_Loaded(object sender, RoutedEventArgs e)
         {
             if (NavView.MenuItems.FirstOrDefault() is NavigationViewItem firstItem)
             {
                 NavView.SelectedItem = firstItem;
-
-                // ����� �����������: ����������� ����� Navigate, ����� �������� NRE
-                NavView.DispatcherQueue.TryEnqueue(() =>
-                {
-                    Navigate(firstItem.Tag.ToString());
-                });
+                Navigate(firstItem.Tag.ToString());
             }
         }
-        // ------------------------------------------------------------
 
         private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
         {
@@ -75,17 +70,16 @@ namespace WeatherClient.Views
 
         private void Navigate(string navItemTag, NavigationTransitionInfo transitionInfo = null)
         {
-            if (ContentFrame == null)
-            {
-                System.Diagnostics.Debug.WriteLine("ОШИБКА: ContentFrame is null!");
-                return;
-            }
+            if (ContentFrame == null) return;
+
+            transitionInfo ??= new EntranceNavigationTransitionInfo();
 
             DataTemplate template = navItemTag switch
             {
                 "Current" => (DataTemplate)NavView.Resources["CurrentWeatherTemplate"],
                 "Forecast" => (DataTemplate)NavView.Resources["ForecastTemplate"],
                 "Charts" => (DataTemplate)NavView.Resources["ChartsTemplate"],
+                "Favorites" => (DataTemplate)NavView.Resources["FavoritesTemplate"],
                 _ => null
             };
 
@@ -97,18 +91,38 @@ namespace WeatherClient.Views
                 Content = ViewModel
             };
 
-            // Устанавливаем контент напрямую
             ContentFrame.Content = contentPresenter;
 
-            // Для Charts ждём загрузки визуального дерева
-            if (navItemTag == "Charts")
+            // НАЗНАЧЕНИЕ ГРАФИКОВ
+            if (navItemTag == "Current")
             {
                 contentPresenter.Loaded += (s, e) =>
                 {
-                    var plotControl = FindChild<ScottPlot.WinUI.WinUIPlot>(contentPresenter);
-                    if (plotControl != null)
+                    // Находим HourlyPlot
+                    var hourlyPlot = FindChild<WinUIPlot>(contentPresenter, "HourlyPlot");
+                    if (hourlyPlot != null)
                     {
-                        ViewModel.ChartControl = plotControl;
+                        ViewModel.HourlyPlotControl = hourlyPlot;
+                        // Отключаем масштабирование
+                        hourlyPlot.UserInputProcessor.IsEnabled = false;
+                        hourlyPlot.UserInputProcessor.IsEnabled = false;
+
+                        // Обновляем график если есть данные
+                        if (ViewModel.DailyForecasts.Any())
+                        {
+                            _ = ViewModel.GetWeatherAsync();
+                        }
+                    }
+                };
+            }
+            else if (navItemTag == "Charts")
+            {
+                contentPresenter.Loaded += (s, e) =>
+                {
+                    var mainPlot = FindChild<WinUIPlot>(contentPresenter, "TemperatureChart");
+                    if (mainPlot != null)
+                    {
+                        ViewModel.ChartControl = mainPlot;
                         if (ViewModel.DailyForecasts.Any())
                         {
                             _ = ViewModel.GetWeatherAsync();
@@ -118,17 +132,68 @@ namespace WeatherClient.Views
             }
         }
 
-        private static T FindChild<T>(DependencyObject parent) where T : DependencyObject
+        // МОДИФИЦИРОВАННЫЙ метод поиска с указанием имени
+        private static T FindChild<T>(DependencyObject parent, string name = null) where T : DependencyObject
         {
             int count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(parent);
             for (int i = 0; i < count; i++)
             {
                 var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(parent, i);
-                if (child is T typedChild) return typedChild;
-                var found = FindChild<T>(child);
+
+                // Проверяем по имени если указано
+                if (name != null && child is FrameworkElement fe && fe.Name == name)
+                {
+                    return child as T;
+                }
+
+                if (child is T typedChild && (name == null || (child as FrameworkElement)?.Name == name))
+                    return typedChild;
+
+                var found = FindChild<T>(child, name);
                 if (found != null) return found;
             }
             return null;
+        }
+
+        private void CityAutoSuggestBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+        {
+            if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+            {
+                ViewModel.UpdateCitySuggestions(sender.Text);
+            }
+        }
+
+        private void CityAutoSuggestBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+        {
+            // Теперь ничего не делаем, так как выбор происходит через команду CitySelected
+            sender.CloseFlyout();
+        }
+        private async void FavoriteButton_PointerPressed(object sender, PointerRoutedEventArgs e)
+        {
+            e.Handled = true; // Блокируем всплытие события!
+
+            if (sender is Button button && button.DataContext is CitySuggestionUiModel suggestion)
+            {
+                if (!ViewModel.FavoriteCities.Contains(suggestion.CityName))
+                {
+                    ViewModel.FavoriteCities.Add(suggestion.CityName);
+                    suggestion.IsFavorite = true; // Обновляем модель напрямую
+
+                    // Пересобираем список для упорядочивания
+                    ViewModel.UpdateCitySuggestions(ViewModel.City);
+                }
+            }
+        }
+    }
+
+    // Расширение для закрытия Flyout
+    public static class FlyoutExtensions
+    {
+        public static void CloseFlyout(this AutoSuggestBox autoSuggestBox)
+        {
+            var flyout = autoSuggestBox.Parent as FlyoutPresenter;
+            var button = flyout?.Parent as Button;
+            button?.Flyout?.Hide();
         }
     }
 }
