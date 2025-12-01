@@ -10,16 +10,19 @@ namespace WeatherClient.Models
         public MainInfo Main { get; set; } = new MainInfo();
         public WindInfo Wind { get; set; } = new WindInfo();
         public SysInfo Sys { get; set; } = new SysInfo();
-        public HourlyForecast forecast { get; set; } = new HourlyForecast();
         public long Timezone { get; set; }
-        public string Name { get; set; } = new("");
+        public string Name { get; set; } = "";
+
+        public CloudsInfo Clouds { get; set; } = new CloudsInfo();
+
+        public int Visibility { get; set; }
     }
 
     public class WeatherDescription
     {
-        public string Main { get; set; } = new("");
-        public string Description { get; set; } = new("");
-        public string Icon { get; set; } = new("");
+        public string Main { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Icon { get; set; } = "";
     }
 
     public class MainInfo
@@ -27,6 +30,10 @@ namespace WeatherClient.Models
         public double Temp { get; set; }
         public int Pressure { get; set; }
         public int Humidity { get; set; }
+
+        // ДОБАВИЛИ: температура по ощущениям
+        [JsonPropertyName("feels_like")]
+        public double FeelsLike { get; set; }
     }
 
     public class WindInfo
@@ -36,11 +43,9 @@ namespace WeatherClient.Models
 
     public class SysInfo
     {
-        // Раскомментировали атрибут и сменили тип на DateTimeOffset
         [JsonConverter(typeof(UnixEpochConverter))]
         public DateTimeOffset Sunrise { get; set; }
 
-        // Раскомментировали атрибут и сменили тип на DateTimeOffset
         [JsonConverter(typeof(UnixEpochConverter))]
         public DateTimeOffset Sunset { get; set; }
     }
@@ -49,4 +54,10 @@ namespace WeatherClient.Models
     {
         public DateTimeOffset Time { get; set; }
     }
+
+    public class CloudsInfo
+    {
+        [JsonPropertyName("all")]
+        public int CloudCoverage { get; set; }
+    } 
 }

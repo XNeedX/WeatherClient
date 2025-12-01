@@ -7,145 +7,507 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:scott="using:ScottPlot.WinUI"
+    xmlns:converters="using:WeatherClient.Converters"
     mc:Ignorable="d"
-    Title="Погода 2.0">
+    Title="WeatherClient">
 
-    <NavigationView x:Name="NavView"
-                    PaneDisplayMode="Top"
-                    IsSettingsVisible="False"
-                    SelectionChanged="NavView_SelectionChanged"
-                    Loaded="NavView_Loaded"
-                    Background="#FFEDF2F7">
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="BaseAlt" />
+    </Window.SystemBackdrop>
 
-        <NavigationView.MenuItems>
-            <NavigationViewItem Icon="World" Content="Сейчас" Tag="Current" IsSelected="True"/>
-            <NavigationViewItem Icon="Calendar" Content="Прогноз на 5 дней" Tag="Forecast"/>
-            <NavigationViewItem Icon="ShowResults" Content="Графики" Tag="Charts"/>
-        </NavigationView.MenuItems>
+    <Grid>
+        <!-- РЕСУРСЫ ПЕРЕМЕЩЕНЫ СЮДА -->
+        <Grid.Resources>
+            <converters:FavoriteIconConverter x:Key="FavoriteIconConverter"/>
+        </Grid.Resources>
 
-        <NavigationView.PaneHeader>
-            <StackPanel Orientation="Horizontal" Spacing="15" Margin="20,10,20,0">
-                <TextBox Width="250" PlaceholderText="Введите город" Text="{Binding City, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" CornerRadius="8" Padding="12,8"/>
-                <Button Command="{Binding GetWeatherCommand}" CornerRadius="8" Background="#FF2196F3" Foreground="White" ToolTipService.ToolTip="Обновить">
-                    <FontIcon Glyph="&#xE72C;" FontFamily="Segoe MDL2 Assets" />
-                </Button>
-            </StackPanel>
-        </NavigationView.PaneHeader>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-        <Frame x:Name="ContentFrame" Padding="20">
-            <Frame.ContentTransitions>
-                <TransitionCollection>
-                    <NavigationThemeTransition/>
-                </TransitionCollection>
-            </Frame.ContentTransitions>
-        </Frame>
+        <!-- NavigationView слева -->
+        <NavigationView x:Name="NavView"
+                       Grid.Row="1"
+                       PaneTitle="Weather"
+                       PaneDisplayMode="Left"
+                       IsSettingsVisible="False"
+                       SelectionChanged="NavView_SelectionChanged"
+                       Loaded="NavView_Loaded"
+                       Background="Transparent"
+                       OpenPaneLength="200">
 
-        <NavigationView.Resources>
-            <DataTemplate x:Key="CurrentWeatherTemplate">
-                <Border Background="#FFFFFF" BorderBrush="#FFBBDEFB" BorderThickness="1" CornerRadius="16" Padding="25" VerticalAlignment="Top" MaxWidth="450" HorizontalAlignment="Center">
-                    <StackPanel HorizontalAlignment="Center" Spacing="25">
-                        <Image Source="{Binding IconUrl}" Height="140" Width="140" HorizontalAlignment="Center" Margin="0,10,0,0"/>
-                        <StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Center">
-                            <TextBlock Text="{Binding Temperature}" FontSize="72" FontWeight="Light" Foreground="#FF2196F3" VerticalAlignment="Center" Margin="0,-10,0,0"/>
-                            <StackPanel VerticalAlignment="Center" Spacing="5">
-                                <TextBlock Text="{Binding City}" FontSize="32" FontWeight="SemiBold" Foreground="#FF212121" TextTrimming="CharacterEllipsis" MaxWidth="200"/>
-                                <TextBlock Text="{Binding Description}" FontSize="18" Foreground="#FF616161"/>
-                            </StackPanel>
-                        </StackPanel>
-                        <Rectangle Height="1" Fill="#FFEEEEEE" Margin="0,15,0,15"/>
-                        <Grid ColumnSpacing="40" RowSpacing="25">
+            <NavigationView.MenuItems>
+                <NavigationViewItem Icon="Globe" Content="Сейчас" Tag="Current" IsSelected="True"/>
+                <NavigationViewItem Icon="CalendarWeek" Content="Прогноз" Tag="Forecast"/>
+                <NavigationViewItem Icon="ShowResults" Content="Графики" Tag="Charts"/>
+                <NavigationViewItem Icon="Favorite" Content="Избранное" Tag="Favorites"/>
+            </NavigationView.MenuItems>
+
+            <Frame x:Name="ContentFrame" 
+                   Padding="20"
+                   HorizontalAlignment="Stretch"
+                   VerticalAlignment="Stretch">
+                <Frame.ContentTransitions>
+                    <TransitionCollection>
+                        <NavigationThemeTransition>
+                            <NavigationThemeTransition.DefaultNavigationTransitionInfo>
+                                <EntranceNavigationTransitionInfo/>
+                            </NavigationThemeTransition.DefaultNavigationTransitionInfo>
+                        </NavigationThemeTransition>
+                    </TransitionCollection>
+                </Frame.ContentTransitions>
+            </Frame>
+
+            <NavigationView.Resources>
+                <Style TargetType="Border" x:Key="CardStyle">
+                    <Setter Property="CornerRadius" Value="12"/>
+                    <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefault}"/>
+                    <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefault}"/>
+                    <Setter Property="BorderThickness" Value="1"/>
+                    <Setter Property="Padding" Value="20"/>
+                </Style>
+
+                <!-- ТЕКУЩАЯ ПОГОДА -->
+                <DataTemplate x:Key="CurrentWeatherTemplate">
+                    <Grid RowSpacing="16">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Верхний ряд: Карточка города слева, показатели справа -->
+                        <Grid Grid.Row="0" ColumnSpacing="16">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="0.4*"/>
+                                <ColumnDefinition Width="0.6*"/>
                             </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
 
-                            <StackPanel Grid.Column="0" Grid.Row="0">
-                                <StackPanel Orientation="Horizontal" Spacing="5">
-                                    <FontIcon Glyph="&#xE7BE;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#FF2196F3"/>
-                                    <TextBlock Text="Влажность" FontSize="15" FontWeight="SemiBold" Foreground="#FF424242"/>
-                                </StackPanel>
-                                <TextBlock Text="{Binding Humidity}" FontSize="20" FontWeight="Medium" Margin="0,5,0,0"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Grid.Row="0">
-                                <StackPanel Orientation="Horizontal" Spacing="5">
-                                    <FontIcon Glyph="&#xE715;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#FF2196F3"/>
-                                    <TextBlock Text="Давление" FontSize="15" FontWeight="SemiBold" Foreground="#FF424242"/>
-                                </StackPanel>
-                                <TextBlock Text="{Binding Pressure}" FontSize="20" FontWeight="Medium" Margin="0,5,0,0"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="0" Grid.Row="1">
-                                <StackPanel Orientation="Horizontal" Spacing="5">
-                                    <FontIcon Glyph="&#xE82D;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#FF2196F3"/>
-                                    <TextBlock Text="Ветер" FontSize="15" FontWeight="SemiBold" Foreground="#FF424242"/>
-                                </StackPanel>
-                                <TextBlock Text="{Binding WindSpeed}" FontSize="20" FontWeight="Medium" Margin="0,5,0,0"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Grid.Row="1">
-                                <StackPanel Orientation="Horizontal" Spacing="5">
-                                    <FontIcon Glyph="&#xEC4A;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#FF2196F3"/>
-                                    <TextBlock Text="Восход" FontSize="15" FontWeight="SemiBold" Foreground="#FF424242"/>
-                                </StackPanel>
-                                <TextBlock Text="{Binding Sunrise}" FontSize="20" FontWeight="Medium" Margin="0,5,0,0"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Grid.Row="2">
-                                <StackPanel Orientation="Horizontal" Spacing="5">
-                                    <FontIcon Glyph="&#xEC4B;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#FF2196F3"/>
-                                    <TextBlock Text="Закат" FontSize="15" FontWeight="SemiBold" Foreground="#FF424242"/>
-                                </StackPanel>
-                                <TextBlock Text="{Binding Sunset}" FontSize="20" FontWeight="Medium" Margin="0,5,0,0"/>
-                            </StackPanel>
-                        </Grid>
-                    </StackPanel>
-                </Border>
-            </DataTemplate>
+                            <!-- Карточка города -->
+                            <Border Grid.Column="0" 
+                                    Style="{StaticResource CardStyle}"
+                                    MinHeight="320">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
 
-            <DataTemplate x:Key="ForecastTemplate">
-                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                    <ItemsControl ItemsSource="{Binding DailyForecasts}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Center"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="models:DailyForecastUiModel">
-                                <Border Background="White" CornerRadius="12" Width="130" Padding="15" BorderBrush="#FFBBDEFB" BorderThickness="1">
-                                    <StackPanel HorizontalAlignment="Center" Spacing="8">
-                                        <TextBlock Text="{x:Bind DayName}" FontSize="18" FontWeight="Bold" Foreground="#FF2196F3" HorizontalAlignment="Center"/>
-                                        <TextBlock Text="{x:Bind DateDisplay}" FontSize="14" Foreground="Gray" HorizontalAlignment="Center"/>
-                                        <Image Source="{x:Bind IconUrl}" Width="60" Height="60"/>
-                                        <TextBlock Text="{x:Bind Description}" FontSize="12" TextWrapping="Wrap" TextAlignment="Center" Height="32"/>
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" Margin="0,10,0,0">
-                                            <StackPanel>
-                                                <TextBlock Text="Макс" FontSize="10" Foreground="Gray"/>
-                                                <TextBlock Text="{x:Bind MaxTempStr}" FontSize="20" FontWeight="SemiBold"/>
-                                            </StackPanel>
-                                            <Rectangle Width="1" Fill="#EEEEEE"/>
-                                            <StackPanel>
-                                                <TextBlock Text="Мин" FontSize="10" Foreground="Gray"/>
-                                                <TextBlock Text="{x:Bind MinTempStr}" FontSize="20" Foreground="Gray"/>
-                                            </StackPanel>
-                                        </StackPanel>
+                                    <!-- Header с кнопкой лупы -->
+                                    <Grid Grid.Row="0" Margin="0,0,0,20">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Column="0" 
+                                                   Text="{Binding City}" 
+                                                   FontSize="24" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"/>
+
+                                        <!-- Кнопка лупы с Flyout -->
+                                        <Button Grid.Column="1" 
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Padding="8"
+                                                Width="40" Height="40"
+                                                CornerRadius="20"
+                                                HorizontalAlignment="Right">
+                                            <Button.Flyout>
+                                                <Flyout Placement="Bottom">
+                                                    <AutoSuggestBox Width="280" 
+                                                            PlaceholderText="Введите город" 
+                                                            Text="{Binding City, Mode=TwoWay}"
+                                                            ItemsSource="{Binding CitySuggestions}"
+                                                            TextMemberPath="CityName"
+                                                            TextChanged="CityAutoSuggestBox_TextChanged"
+                                                            QuerySubmitted="CityAutoSuggestBox_QuerySubmitted"
+                                                            CornerRadius="8"
+                                                            Padding="12,8"
+                                                            FontSize="14">
+                                                        <AutoSuggestBox.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <!-- УПРОЩЕННЫЙ ШАБЛОН: только текст города -->
+                                                                <Grid Height="40">
+                                                                    <TextBlock Text="{Binding CityName}" 
+                                                                           VerticalAlignment="Center"
+                                                                           FontSize="14"
+                                                                           Margin="12,0,0,0"/>
+                                                                </Grid>
+                                                            </DataTemplate>
+                                                        </AutoSuggestBox.ItemTemplate>
+                                                    </AutoSuggestBox>
+                                                </Flyout>
+                                            </Button.Flyout>
+                                            <FontIcon Glyph="&#xE721;" FontSize="16"/>
+                                        </Button>
+                                    </Grid>
+
+                                    <!-- Основная информация -->
+                                    <StackPanel Grid.Row="1" 
+                                                HorizontalAlignment="Center" 
+                                                VerticalAlignment="Center" 
+                                                Spacing="8">
+                                        <Image Source="{Binding IconUrl}" 
+                                               Width="100" Height="100"/>
+                                        <TextBlock Text="{Binding Temperature}" 
+                                                   FontSize="48" FontWeight="Light"
+                                                   HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Description}" 
+                                                   FontSize="16"
+                                                   HorizontalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <!-- Дата/время -->
+                                    <TextBlock Grid.Row="2" 
+                                               Text="{Binding CurrentDateTime}" 
+                                               FontSize="13" 
+                                               Foreground="{ThemeResource TextFillColorSecondary}"
+                                               HorizontalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- 6 карточек показателей -->
+                            <Grid Grid.Column="1" RowSpacing="12" ColumnSpacing="12">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Wind -->
+                                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource CardStyle}">
+                                    <StackPanel Spacing="6">
+                                        <FontIcon Glyph="&#xE909;" FontSize="28"/>
+                                        <TextBlock Text="Wind Status" FontSize="11" 
+                                                   Foreground="{ThemeResource TextFillColorSecondary}"/>
+                                        <TextBlock Text="{Binding WindSpeed}" FontSize="18" FontWeight="SemiBold"/>
                                     </StackPanel>
                                 </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </DataTemplate>
 
-            <DataTemplate x:Key="ChartsTemplate">
-                <Border Background="White" CornerRadius="12" Padding="20" BorderBrush="#FFBBDEFB" BorderThickness="1" Margin="0,20,0,0">
-                    <scott:WinUIPlot x:Name="TemperatureChart" Height="400"/>
-                </Border>
-            </DataTemplate>
+                                <!-- UV Index -->
+                                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource CardStyle}">
+                                    <StackPanel Spacing="6">
+                                        <FontIcon Glyph="&#xE706;" FontSize="28"/>
+                                        <TextBlock Text="UV Index" FontSize="11" 
+                                                   Foreground="{ThemeResource TextFillColorSecondary}"/>
+                                        <TextBlock Text="{Binding UvIndex}" FontSize="18" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Border>
 
-            <ContentControl x:Key="ContentPresenter" Content="{Binding}"/>
-        </NavigationView.Resources>
-    </NavigationView>
+                                <!-- Sunrise/Sunset -->
+                                <Border Grid.Row="0" Grid.Column="2" Style="{StaticResource CardStyle}">
+                                    <StackPanel Spacing="6">
+                                        <FontIcon Glyph="&#xE706;" FontSize="28"/>
+                                        <TextBlock Text="Sunrise &amp; Sunset" FontSize="11" 
+                                                   Foreground="{ThemeResource TextFillColorSecondary}"/>
+                                        <TextBlock FontSize="14" FontWeight="SemiBold">
+                                            <Run Text="{Binding Sunrise}"/>
+                                            <Run Text="/"/>
+                                            <Run Text="{Binding Sunset}"/>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Humidity -->
+                                <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource CardStyle}">
+                                    <StackPanel Spacing="6">
+                                        <FontIcon Glyph="&#xE7BE;" FontSize="28"/>
+                                        <TextBlock Text="Humidity" FontSize="11" 
+                                                   Foreground="{ThemeResource TextFillColorSecondary}"/>
+                                        <TextBlock Text="{Binding Humidity}" FontSize="18" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Feels Like -->
+                                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource CardStyle}">
+                                    <StackPanel Spacing="6">
+                                        <FontIcon Glyph="&#xE7B0;" FontSize="28"/>
+                                        <TextBlock Text="Feels Like" FontSize="11" 
+                                                   Foreground="{ThemeResource TextFillColorSecondary}"/>
+                                        <TextBlock Text="{Binding FeelsLike}" FontSize="18" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Visibility -->
+                                <Border Grid.Row="1" Grid.Column="2" Style="{StaticResource CardStyle}">
+                                    <StackPanel Spacing="6">
+                                        <FontIcon Glyph="&#xE7B4;" FontSize="28"/>
+                                        <TextBlock Text="Visibility" FontSize="11" 
+                                                   Foreground="{ThemeResource TextFillColorSecondary}"/>
+                                        <TextBlock Text="{Binding Visibility}" FontSize="18" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Grid>
+
+                        <!-- Нижний ряд: 7 дней и график -->
+                        <Grid Grid.Row="1" Margin="0,16,0,0" ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="0.45*"/>
+                                <ColumnDefinition Width="0.55*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- 7 дней -->
+                            <Border Grid.Column="0" 
+                                    Style="{StaticResource CardStyle}"
+                                    Padding="12,16,12,12">
+                                <StackPanel>
+                                    <TextBlock Text="7 days Forecast" 
+                                               FontSize="16" FontWeight="SemiBold"
+                                               Margin="0,0,0,8"/>
+                                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                                  VerticalScrollBarVisibility="Disabled"
+                                                  Height="125">
+                                        <ItemsControl ItemsSource="{Binding DailyForecasts}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal" Spacing="6"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="models:DailyForecastUiModel">
+                                                    <Border Width="75"
+                                                            MinHeight="95"
+                                                            CornerRadius="8"
+                                                            Background="{ThemeResource CardBackgroundFillColorSecondary}"
+                                                            Padding="6">
+                                                        <StackPanel Spacing="3" HorizontalAlignment="Center">
+                                                            <TextBlock Text="{x:Bind DayName}" 
+                                                                       FontSize="10"
+                                                                       HorizontalAlignment="Center"/>
+                                                            <Image Source="{x:Bind IconUrl}" 
+                                                                   Width="24" Height="24"
+                                                                   HorizontalAlignment="Center"/>
+                                                            <TextBlock Text="{x:Bind MaxTempStr}" 
+                                                                       FontSize="12" FontWeight="SemiBold"
+                                                                       HorizontalAlignment="Center"/>
+                                                            <TextBlock Text="{x:Bind MinTempStr}" 
+                                                                       FontSize="10" 
+                                                                       Foreground="{ThemeResource TextFillColorSecondary}"
+                                                                       HorizontalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- График 24hr -->
+                            <Border Grid.Column="1" 
+                                    Style="{StaticResource CardStyle}"
+                                    Padding="12"
+                                    MinHeight="240">
+                                <StackPanel>
+                                    <TextBlock Text="Hourly Forecast" 
+                                               FontSize="16" FontWeight="SemiBold"
+                                               Margin="0,0,0,8"/>
+                                    <Border CornerRadius="6" 
+                                            Background="{ThemeResource CardBackgroundFillColorSecondary}"
+                                            Padding="4">
+                                        <scott:WinUIPlot x:Name="HourlyPlot" 
+                                                         Height="180"
+                                                         VerticalAlignment="Stretch"/>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </DataTemplate>
+
+                <!-- ПРОГНОЗ -->
+                <DataTemplate x:Key="ForecastTemplate">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" 
+                                  VerticalScrollBarVisibility="Disabled"
+                                  Padding="0,24,0,0">
+                        <ItemsControl ItemsSource="{Binding DailyForecasts}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="models:DailyForecastUiModel">
+                                    <Border Width="140"
+                                            CornerRadius="12"
+                                            Background="{ThemeResource CardBackgroundFillColorDefault}"
+                                            BorderBrush="{ThemeResource CardStrokeColorDefault}"
+                                            BorderThickness="1"
+                                            Padding="16">
+                                        <StackPanel HorizontalAlignment="Center" Spacing="12">
+                                            <TextBlock Text="{x:Bind DayName}" 
+                                                       FontSize="16" 
+                                                       FontWeight="SemiBold" 
+                                                       Foreground="{ThemeResource SystemAccentColor}"
+                                                       HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{x:Bind DateDisplay}" 
+                                                       FontSize="14" 
+                                                       Foreground="{ThemeResource TextFillColorSecondary}"
+                                                       HorizontalAlignment="Center"/>
+                                            <Image Source="{x:Bind IconUrl}" 
+                                                   Width="64" Height="64"
+                                                   HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{x:Bind Description}" 
+                                                       FontSize="13" 
+                                                       TextWrapping="Wrap" 
+                                                       TextAlignment="Center" 
+                                                       Height="36"
+                                                       Foreground="{ThemeResource TextFillColorSecondary}"/>
+                                            <StackPanel Orientation="Horizontal" 
+                                                        HorizontalAlignment="Center" 
+                                                        Spacing="12" 
+                                                        Margin="0,12,0,0">
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock Text="Макс" 
+                                                               FontSize="11" 
+                                                               Foreground="{ThemeResource TextFillColorSecondary}"/>
+                                                    <TextBlock Text="{x:Bind MaxTempStr}" 
+                                                               FontSize="18" 
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{ThemeResource TextFillColorPrimary}"/>
+                                                </StackPanel>
+                                                <Rectangle Width="1" 
+                                                           Fill="{ThemeResource DividerStrokeColorDefault}" 
+                                                           Opacity="0.6"/>
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock Text="Мин" 
+                                                               FontSize="11" 
+                                                               Foreground="{ThemeResource TextFillColorSecondary}"/>
+                                                    <TextBlock Text="{x:Bind MinTempStr}" 
+                                                               FontSize="18" 
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{ThemeResource TextFillColorSecondary}"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DataTemplate>
+
+                <!-- ГРАФИКИ -->
+                <DataTemplate x:Key="ChartsTemplate">
+                    <Grid Padding="0,24,0,0">
+                        <Border CornerRadius="12"
+                                Background="{ThemeResource CardBackgroundFillColorDefault}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefault}"
+                                BorderThickness="1"
+                                Padding="24">
+                            <StackPanel Spacing="16">
+                                <TextBlock Text="Температура на 3 дня" 
+                                           FontSize="24" 
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorPrimary}"/>
+                                <Border Height="400"
+                                        CornerRadius="8">
+                                    <scott:WinUIPlot x:Name="TemperatureChart"/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </DataTemplate>
+
+                <!-- ИЗБРАННОЕ -->
+                <DataTemplate x:Key="FavoritesTemplate">
+                    <ScrollViewer Padding="0,24,0,0">
+                        <Grid HorizontalAlignment="Center" MaxWidth="600">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0" Margin="0,0,0,24" Spacing="8">
+                                <TextBlock Text="История поиска" 
+                                           FontSize="20" 
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorPrimary}"
+                                           Margin="0,0,0,12"/>
+                                <ItemsControl ItemsSource="{Binding SearchHistory}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" Spacing="8"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Content="{Binding}" 
+                                                    Command="{Binding ElementName=NavView, Path=DataContext.LoadCityFromHistoryCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    CornerRadius="16"
+                                                    Padding="12,6"
+                                                    Background="{ThemeResource CardBackgroundFillColorSecondary}"
+                                                    BorderThickness="0"
+                                                    FontSize="13"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <ItemsControl Grid.Row="1" ItemsSource="{Binding FavoriteCities}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Vertical" Spacing="12"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <Border CornerRadius="12"
+                                                    Background="{ThemeResource CardBackgroundFillColorDefault}"
+                                                    BorderBrush="{ThemeResource CardStrokeColorDefault}"
+                                                    BorderThickness="1"
+                                                    Padding="16">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <Button Grid.Column="0"
+                                                            Content="{Binding}"
+                                                            Command="{Binding ElementName=NavView, Path=DataContext.LoadCityFromFavoritesCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Left"
+                                                            Background="Transparent"
+                                                            BorderThickness="0"
+                                                            FontSize="16"/>
+
+                                                    <Button Grid.Column="1"
+                                                            Command="{Binding ElementName=NavView, Path=DataContext.RemoveFromFavoritesCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            Background="Transparent"
+                                                            BorderThickness="0"
+                                                            Padding="8"
+                                                            ToolTipService.ToolTip="Удалить из избранного">
+                                                        <FontIcon Glyph="&#xE74D;" Foreground="Red" FontSize="14"/>
+                                                    </Button>
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                    </ScrollViewer>
+                </DataTemplate>
+
+            </NavigationView.Resources>
+            <!-- Закрытие NavigationView.Resources -->
+
+        </NavigationView>
+        <!-- Закрытие NavigationView -->
+
+    </Grid>
+    <!-- Закрытие основного Grid -->
+
 </Window>
