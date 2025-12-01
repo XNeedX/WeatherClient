@@ -1,17 +1,15 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Dispatching;
+using ScottPlot; // Добавляем ScottPlot
 using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
+using System.Collections.Generic; // Нужно для List
+using System.Collections.ObjectModel; // Нужно для ObservableCollection
 using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
+using System.Linq; // Нужно для группировки (GroupBy)
 using System.Threading.Tasks;
 using WeatherClient.Models;
 using WeatherClient.Services;
-using ScottPlot;
 
 namespace WeatherClient.ViewModels
 {
@@ -19,28 +17,16 @@ namespace WeatherClient.ViewModels
     {
         private readonly WeatherService _weatherService = new();
         private readonly DispatcherQueue _dispatcher;
-        private List<string> _allCities = new();
 
         public MainViewModel(DispatcherQueue dispatcher)
         {
             _dispatcher = dispatcher;
             City = "Москва";
+            // Инициализируем коллекции
             DailyForecasts = new ObservableCollection<DailyForecastUiModel>();
-            CitySuggestions = new ObservableCollection<CitySuggestionUiModel>();
-            SearchHistory = new ObservableCollection<string>();
-            FavoriteCities = new ObservableCollection<string>();
-
-            // Значения по умолчанию для показателей
-            UvIndex = "5.50";
-            Visibility = "24 km";
-            FeelsLike = "28°C";
-            CurrentDateTime = DateTime.Now.ToString("dddd, MMM dd | HH:mm", new CultureInfo("ru-RU"));
-
-            _ = LoadCityListAsync();
-            UpdateFavoriteButtonState();
         }
 
-        // ======== СВОЙСТВА ПОГОДЫ ========
+        // --- Свойства текущей погоды (ОСТАЮТСЯ БЕЗ ИЗМЕНЕНИЙ) ---
         [ObservableProperty] private string city;
         [ObservableProperty] private string temperature;
         [ObservableProperty] private string description;
@@ -51,104 +37,24 @@ namespace WeatherClient.ViewModels
         [ObservableProperty] private string sunset;
         [ObservableProperty] private string iconUrl;
 
-        // ======== ДОПОЛНИТЕЛЬНЫЕ ПОКАЗАТЕЛИ ========
-        [ObservableProperty] private string uvIndex;
-        [ObservableProperty] private string visibility;
-        [ObservableProperty] private string feelsLike;
-        [ObservableProperty] private string currentDateTime;
+        // --- НОВЫЕ СВОЙСТВА ---
 
-        // ======== КОЛЛЕКЦИИ ========
+        // Коллекция для списка прогнозов по дням (для UI)
         public ObservableCollection<DailyForecastUiModel> DailyForecasts { get; }
-        [ObservableProperty] private ObservableCollection<CitySuggestionUiModel> citySuggestions;
-        [ObservableProperty] private ObservableCollection<string> searchHistory;
-        [ObservableProperty] public ObservableCollection<string> favoriteCities;
 
-        // ======== КОНТРОЛЫ ========
-        public ScottPlot.WinUI.WinUIPlot? ChartControl { get; set; }
-        public ScottPlot.WinUI.WinUIPlot? HourlyPlotControl { get; set; }
-
-        // ======== СОСТОЯНИЕ ========
-        [ObservableProperty] private bool canAddToFavorites;
-        [ObservableProperty] private string currentCityDisplayed = string.Empty;
-
-        private async Task LoadCityListAsync()
-        {
-            try
-            {
-                var filePath = Path.Combine(AppContext.BaseDirectory, "cities.json");
-                if (File.Exists(filePath))
-                {
-                    var json = await File.ReadAllTextAsync(filePath);
-                    var cities = JsonSerializer.Deserialize<List<string>>(json);
-                    if (cities != null)
-                    {
-                        _allCities = cities;
-                        return;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки городов: {ex.Message}");
-            }
-
-            // Запасной список
-            _allCities = new List<string>
-            {
-                "Москва", "Санкт-Петербург", "Новосибирск", "Екатеринбург",
-                "Казань", "Нижний Новгород", "Челябинск", "Красноярск",
-                "Самара", "Уфа", "Ростов-на-Дону", "Омск",
-                "Краснодар", "Воронеж", "Пермь", "Волгоград",
-                "Лондон", "Нью-Йорк", "Париж", "Токио", "Берлин"
-            };
-        }
-
-        public void UpdateCitySuggestions(string text)
-        {
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                _dispatcher.TryEnqueue(() => CitySuggestions.Clear());
-                return;
-            }
-
-            var filtered = _allCities
-                .Where(c => c.StartsWith(text, StringComparison.OrdinalIgnoreCase))
-                .Take(15)
-                .Select(city => new CitySuggestionUiModel
-                {
-                    CityName = city,
-                    IsFavorite = FavoriteCities.Contains(city)
-                })
-                .OrderByDescending(s => s.IsFavorite)
-                .ThenBy(s => s.CityName)
-                .ToList();
-
-            _dispatcher.TryEnqueue(() =>
-            {
-                CitySuggestions.Clear();
-                foreach (var suggestion in filtered) CitySuggestions.Add(suggestion);
-            });
-        }
-
-        public void UpdateFavoriteButtonState()
-        {
-            CanAddToFavorites = !string.IsNullOrWhiteSpace(CurrentCityDisplayed) &&
-                               !FavoriteCities.Contains(CurrentCityDisplayed);
-        }
+        // Свойство для хранения графика (ссылка на контрол во View)
+        // Мы будем передавать его из View в ViewModel
+        public ScottPlot.WinUI.WinUIPlot ChartControl { get; set; }
 
         [RelayCommand]
         public async Task GetWeatherAsync()
         {
-            if (string.IsNullOrWhiteSpace(City)) return;
-
-            if (!SearchHistory.Contains(City))
-            {
-                SearchHistory.Insert(0, City);
-                if (SearchHistory.Count > 10) SearchHistory.RemoveAt(SearchHistory.Count - 1);
-            }
-
+            // 1. Запрашиваем текущую погоду
             var currentWeatherTask = _weatherService.GetWeatherAsync(City);
+            // 2. Запрашиваем прогноз
             var forecastTask = _weatherService.GetForecastAsync(City);
+
+            // Ждем выполнения обеих задач параллельно
             await Task.WhenAll(currentWeatherTask, forecastTask);
 
             var currentData = currentWeatherTask.Result;
@@ -156,31 +62,28 @@ namespace WeatherClient.ViewModels
 
             _dispatcher.TryEnqueue(() =>
             {
+                // Обновляем текущую погоду (как и раньше, с учетом фикса времени)
                 UpdateCurrentWeatherUi(currentData);
+
+                // Обновляем прогноз и графики
                 UpdateForecastUi(forecastData);
             });
         }
 
         private void UpdateCurrentWeatherUi(WeatherResponse data)
         {
-            if (data?.Weather?.Length > 0)
-            {
-                Temperature = $"{data.Main.Temp:F1}°C";
-                Description = data.Weather[0].Description;
-                Humidity = $"{data.Main.Humidity}%";
-                Pressure = $"{data.Main.Pressure} гПа";
-                WindSpeed = $"{data.Wind.Speed} м/с";
+            if (data == null || data.Weather == null || data.Weather.Length == 0) return;
 
-                var offset = TimeSpan.FromSeconds(data.Timezone);
-                Sunrise = data.Sys.Sunrise.ToOffset(offset).ToString("HH:mm");
-                Sunset = data.Sys.Sunset.ToOffset(offset).ToString("HH:mm");
-                CurrentDateTime = DateTimeOffset.Now.ToOffset(offset).ToString("dddd, MMM dd | HH:mm", new CultureInfo("ru-RU"));
+            Temperature = $"{data.Main.Temp:F1}°C";
+            Description = data.Weather[0].Description;
+            Humidity = $"{data.Main.Humidity}%";
+            Pressure = $"{data.Main.Pressure} гПа";
+            WindSpeed = $"{data.Wind.Speed} м/с";
 
-                IconUrl = $"https://openweathermap.org/img/wn/{data.Weather[0].Icon}@2x.png";
-
-                CurrentCityDisplayed = City;
-                UpdateFavoriteButtonState();
-            }
+            var offset = TimeSpan.FromSeconds(data.Timezone);
+            Sunrise = data.Sys.Sunrise.ToOffset(offset).ToString("HH:mm");
+            Sunset = data.Sys.Sunset.ToOffset(offset).ToString("HH:mm");
+            IconUrl = $"https://openweathermap.org/img/wn/{data.Weather[0].Icon}@2x.png";
         }
 
         private void UpdateForecastUi(ForecastResponse forecastData)
@@ -188,19 +91,27 @@ namespace WeatherClient.ViewModels
             DailyForecasts.Clear();
             if (forecastData?.List == null) return;
 
+            // --- ЛОГИКА ГРУППИРОВКИ ПРОГНОЗА ---
+
+            // Группируем 3-часовые записи по дате (день месяца)
             var groupedByDay = forecastData.List
                 .GroupBy(x => x.DateTime.Date)
                 .OrderBy(g => g.Key)
-                .Take(7);
+                .Take(5); // Берем следующие 5 дней
 
             foreach (var dayGroup in groupedByDay)
             {
+                // Вычисляем мин и макс температуру за этот день
                 double minTemp = dayGroup.Min(x => x.Main.Temp);
                 double maxTemp = dayGroup.Max(x => x.Main.Temp);
+
+                // Пытаемся найти иконку и описание для середины дня (например, около 12:00-15:00),
+                // чтобы они были репрезентативными. Если нет, берем первую.
                 var representativeItem = dayGroup.FirstOrDefault(x => x.DateTime.Hour >= 12) ?? dayGroup.First();
 
                 DailyForecasts.Add(new DailyForecastUiModel
                 {
+                    // CultureInfo ("ru-RU") нужна чтобы названия дней были на русском
                     DayName = dayGroup.Key.ToString("ddd", new CultureInfo("ru-RU")),
                     DateDisplay = dayGroup.Key.ToString("dd MMM", new CultureInfo("ru-RU")),
                     MinTemp = minTemp,
@@ -210,117 +121,35 @@ namespace WeatherClient.ViewModels
                 });
             }
 
-            UpdateCharts(forecastData);
-        }
-
-        private void UpdateCharts(ForecastResponse forecastData)
-        {
-            // График температуры
-            if (ChartControl?.Plot != null)
+            // --- ЛОГИКА ОБНОВЛЕНИЯ ГРАФИКА ---
+            if (ChartControl != null)
             {
                 ChartControl.Plot.Clear();
-                var items = forecastData.List.Take(24).ToList();
 
-                if (items.Any())
+                // Подготавливаем данные для графика: все 3-часовые точки
+                List<DateTime> dates = new();
+                List<double> temps = new();
+
+                // Берем первые ~24 точки (3 дня * 8 точек), чтобы не перегружать график
+                foreach (var item in forecastData.List.Take(24))
                 {
-                    var dates = items.Select(i => i.DateTime.ToOADate()).ToArray();
-                    var temps = items.Select(i => i.Main.Temp).ToArray();
-
-                    var scatter = ChartControl.Plot.Add.Scatter(dates, temps);
-                    scatter.LineWidth = 3;
-                    scatter.Color = ScottPlot.Colors.Orange;
-                    scatter.MarkerSize = 8;
-
-                    ChartControl.Plot.Axes.DateTimeTicksBottom();
-                    ChartControl.Plot.Title("Температура на 3 дня (шаг 3 часа)");
-                    ChartControl.Plot.YLabel("Температура (°C)");
-                    ChartControl.Refresh();
+                    dates.Add(item.DateTime);
+                    temps.Add(item.Main.Temp);
                 }
-            }
 
-            // Почасовой график
-            if (HourlyPlotControl?.Plot != null)
-            {
-                HourlyPlotControl.Plot.Clear();
-                var hourlyData = forecastData.List.Take(8).ToList();
+                // Добавляем график рассеяния (Scatter Plot) - точки, соединенные линией
+                var scatter = ChartControl.Plot.Add.Scatter(dates.Select(d => d.ToOADate()).ToArray(), temps.ToArray());
+                scatter.LineWidth = 3;
+                scatter.Color = Colors.Orange; // Используем цвет из ScottPlot.Colors
+                scatter.MarkerSize = 10;
 
-                if (hourlyData.Any())
-                {
-                    var dates = hourlyData.Select(x => x.DateTime.ToOADate()).ToArray();
-                    var temps = hourlyData.Select(x => x.Main.Temp).ToArray();
+                // Настраиваем оси
+                ChartControl.Plot.Axes.DateTimeTicksBottom(); // Ось X - это даты/время
+                ChartControl.Plot.Title("Температура на 3 дня (шаг 3 часа)");
+                ChartControl.Plot.YLabel("Температура (°C)");
 
-                    var scatter = HourlyPlotControl.Plot.Add.Scatter(dates, temps);
-                    scatter.LineWidth = 2;
-                    scatter.Color = ScottPlot.Colors.Blue;
-                    scatter.MarkerSize = 6;
-
-                    HourlyPlotControl.Plot.Axes.DateTimeTicksBottom();
-                    HourlyPlotControl.Plot.Title("");
-                    HourlyPlotControl.Plot.YLabel("°C");
-                    HourlyPlotControl.Plot.HideGrid();
-                    HourlyPlotControl.UserInputProcessor.IsEnabled = false;
-                    HourlyPlotControl.Refresh();
-                }
-            }
-        }
-
-        [RelayCommand]
-        public void AddToFavorites()
-        {
-            if (!string.IsNullOrWhiteSpace(CurrentCityDisplayed) &&
-                !FavoriteCities.Contains(CurrentCityDisplayed))
-            {
-                FavoriteCities.Add(CurrentCityDisplayed);
-                UpdateFavoriteButtonState();
-            }
-        }
-
-        [RelayCommand]
-        public void RemoveFromFavorites(string city)
-        {
-            if (FavoriteCities.Contains(city))
-            {
-                FavoriteCities.Remove(city);
-                UpdateFavoriteButtonState();
-            }
-        }
-
-        [RelayCommand]
-        public async Task AddToFavoritesFromSuggestion(string? cityName)
-        {
-            if (string.IsNullOrWhiteSpace(cityName) || FavoriteCities.Contains(cityName)) return;
-
-            FavoriteCities.Add(cityName);
-            UpdateFavoriteButtonState();
-
-            // Небольшая задержка обязательна, чтобы UI успел обновиться
-            await Task.Delay(50);
-
-            // Пересоздаем список подсказок, чтобы обновить иконки
-            UpdateCitySuggestions(City);
-        }
-
-        [RelayCommand]
-        public void LoadCityFromFavorites(string city)
-        {
-            City = city;
-            GetWeatherCommand.Execute(null);
-        }
-
-        [RelayCommand]
-        public void LoadCityFromHistory(string city)
-        {
-            City = city;
-            GetWeatherCommand.Execute(null);
-        }
-
-        [RelayCommand]
-        public void CitySelected(string cityName)
-        {
-            if (!string.IsNullOrWhiteSpace(cityName))
-            {
-                City = cityName;
-                GetWeatherCommand.Execute(null);
+                // Обновляем отображение графика
+                ChartControl.Refresh();
             }
         }
     }

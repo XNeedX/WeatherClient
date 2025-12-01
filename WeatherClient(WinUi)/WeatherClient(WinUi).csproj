@@ -47,11 +47,6 @@
     <PackageReference Include="ScottPlot.WinUI" Version="5.1.57" />
   </ItemGroup>
   <ItemGroup>
-    <None Update="cities.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <Page Update="Views\MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

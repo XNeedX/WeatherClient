@@ -5,22 +5,6 @@
     xmlns:local="using:WeatherClient">
 
     <Application.Resources>
-        <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
-                <ResourceDictionary>
-                    <!-- Акцентные цвета -->
-                    <Color x:Key="SystemAccentColor">#FF005FB8</Color>
-                    <Color x:Key="SystemAccentColorLight1">#FF4C9DFF</Color>
-                    <Color x:Key="SystemAccentColorDark1">#FF0045A6</Color>
-
-                    <!-- Отступы Fluent -->
-                    <Thickness x:Key="PageMargin">40,32,40,32</Thickness>
-                    <Thickness x:Key="CardPadding">24</Thickness>
-                    <CornerRadius x:Key="ControlCornerRadius">8</CornerRadius>
-                    <CornerRadius x:Key="CardCornerRadius">12</CornerRadius>
-                </ResourceDictionary>
-            </ResourceDictionary.MergedDictionaries>
-        </ResourceDictionary>
+        <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
     </Application.Resources>
 </Application>
