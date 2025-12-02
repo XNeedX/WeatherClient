@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -20,6 +21,7 @@ namespace WeatherClient.ViewModels
         private readonly WeatherService _weatherService = new();
         private readonly DispatcherQueue _dispatcher;
         private List<string> _allCities = new();
+        private ForecastResponse _lastForecastData;
 
         public MainViewModel(DispatcherQueue dispatcher)
         {
@@ -51,13 +53,16 @@ namespace WeatherClient.ViewModels
         [ObservableProperty] private string feelsLike;
         [ObservableProperty] private string currentDateTime;
 
+        // ======== АНИМАЦИЯ ПОГОДЫ ========
+        [ObservableProperty] private object currentWeatherAnimation;
+
         // ======== КОЛЛЕКЦИИ ========
         public ObservableCollection<DailyForecastUiModel> DailyForecasts { get; }
         [ObservableProperty] private ObservableCollection<CitySuggestionUiModel> citySuggestions;
         [ObservableProperty] private ObservableCollection<string> searchHistory;
         [ObservableProperty] public ObservableCollection<string> favoriteCities;
 
-        // ======== КОНТРОЛЫ ========
+        // ======== КОНТРОЛЫ ГРАФИКОВ ========
         public ScottPlot.WinUI.WinUIPlot? ChartControl { get; set; }
         public ScottPlot.WinUI.WinUIPlot? HourlyPlotControl { get; set; }
 
@@ -164,13 +169,9 @@ namespace WeatherClient.ViewModels
                 Pressure = $"{data.Main.Pressure} гПа";
                 WindSpeed = $"{data.Wind.Speed} м/с";
 
-                // Обновление Feels Like из API
                 FeelsLike = $"{data.Main.FeelsLike:F1}°C";
-
-                // Обновление Visibility из API (метры → км)
                 Visibility = $"{data.Visibility / 1000.0:F1} км";
 
-                // Расчет UV Index (приближенный)
                 UvIndex = CalculateUvIndex(data);
 
                 var offset = TimeSpan.FromSeconds(data.Timezone);
@@ -182,6 +183,9 @@ namespace WeatherClient.ViewModels
 
                 CurrentCityDisplayed = City;
                 UpdateFavoriteButtonState();
+
+                // ✅ ОТЛОЖЕННАЯ ЗАГРУЗКА АНИМАЦИИ (с учетом описания)
+                _ = LoadAnimationSafely(data.Weather[0].Main, data.Weather[0].Description ?? "");
             }
         }
 
@@ -205,10 +209,78 @@ namespace WeatherClient.ViewModels
             return finalUv.ToString("F1");
         }
 
+        private async Task LoadAnimationSafely(string weatherMain, string description)
+        {
+            try
+            {
+                await Task.Delay(200);
+
+                _dispatcher.TryEnqueue(() =>
+                {
+                    // Пытаемся найти анимацию
+                    var animation = GetAnimationByWeather(weatherMain, description);
+
+                    // Если не нашли, оставляем null (тогда будет только иконка)
+                    CurrentWeatherAnimation = animation;
+
+                    // Если анимация есть, скрываем иконку (необязательно, иконка под ней)
+                    // Если анимации нет - показывается иконка по умолчанию
+                });
+            }
+            catch
+            {
+                // В случае ошибки просто показываем иконку (устанавливаем null)
+                _dispatcher.TryEnqueue(() => CurrentWeatherAnimation = null);
+            }
+        }
+
+        private object GetAnimationByWeather(string weatherMain, string description)
+        {
+            try
+            {
+                var main = weatherMain?.ToLower() ?? "";
+                var desc = description?.ToLower() ?? "";
+
+                var key = main switch
+                {
+                    "clear" => "SunnyAnimation",
+                    "clouds" when desc.Contains("few") ||
+                                 desc.Contains("scattered") ||
+                                 desc.Contains("partly") ||
+                                 desc.Contains("облачно с прояснениями") ||
+                                 desc.Contains("переменная облачность") ||
+                                 desc.Contains("небольшая облачность") =>
+                                 "PartlyCloudyAnimation",
+                    "clouds" => "CloudyAnimation",
+                    "rain" or "drizzle" => "RainyAnimation",
+                    "snow" => "SnowyAnimation",
+                    "thunderstorm" => "ThunderAnimation",
+                    _ => "SunnyAnimation"
+                };
+
+                // Проверяем, существует ли ресурс
+                if (Application.Current.Resources.ContainsKey(key))
+                {
+                    return Application.Current.Resources[key];
+                }
+
+                // РЕСУРС НЕ НАЙДЕН - возвращаем null
+                System.Diagnostics.Debug.WriteLine($"⚠️ Ресурс {key} не найден в Application.Resources");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"❌ Ошибка: {ex.Message}");
+                return null;
+            }
+        }
+
         private void UpdateForecastUi(ForecastResponse forecastData)
         {
             DailyForecasts.Clear();
             if (forecastData?.List == null) return;
+
+            _lastForecastData = forecastData;
 
             var groupedByDay = forecastData.List
                 .GroupBy(x => x.DateTime.Date)
@@ -232,58 +304,115 @@ namespace WeatherClient.ViewModels
                 });
             }
 
-            UpdateCharts(forecastData);
+            UpdateChartsIfLoaded();
         }
 
-        private void UpdateCharts(ForecastResponse forecastData)
+        public void InitializeHourlyChart()
         {
-            if (ChartControl?.Plot != null)
+            if (HourlyPlotControl?.Plot == null) return;
+
+
+            HourlyPlotControl.Plot.Axes.Color(ScottPlot.Colors.Gray);
+            HourlyPlotControl.Plot.Grid.MajorLineColor = ScottPlot.Colors.Gray.WithOpacity(0.1);
+
+            HourlyPlotControl.Plot.Title("");
+            HourlyPlotControl.Plot.YLabel("°C");
+            HourlyPlotControl.Plot.XLabel("");
+            HourlyPlotControl.Plot.HideGrid();
+
+            if (_lastForecastData != null)
             {
-                ChartControl.Plot.Clear();
-                var items = forecastData.List.Take(24).ToList();
-
-                if (items.Any())
-                {
-                    var dates = items.Select(i => i.DateTime.ToOADate()).ToArray();
-                    var temps = items.Select(i => i.Main.Temp).ToArray();
-
-                    var scatter = ChartControl.Plot.Add.Scatter(dates, temps);
-                    scatter.LineWidth = 3;
-                    scatter.Color = ScottPlot.Colors.Orange;
-                    scatter.MarkerSize = 8;
-
-                    ChartControl.Plot.Axes.DateTimeTicksBottom();
-                    ChartControl.Plot.Title("Температура на 3 дня (шаг 3 часа)");
-                    ChartControl.Plot.YLabel("Температура (°C)");
-                    ChartControl.Refresh();
-                }
+                UpdateHourlyChart(_lastForecastData);
             }
 
-            if (HourlyPlotControl?.Plot != null)
+            HourlyPlotControl.Refresh();
+        }
+
+        public void InitializeMainChart()
+        {
+            if (ChartControl?.Plot == null) return;
+
+            ChartControl.Plot.Axes.Color(ScottPlot.Colors.Gray);
+            ChartControl.Plot.Grid.MajorLineColor = ScottPlot.Colors.Gray.WithOpacity(0.1);
+
+            ChartControl.Plot.Title("Температура на 3 дня (шаг 3 часа)");
+            ChartControl.Plot.YLabel("Температура (°C)");
+            ChartControl.Plot.XLabel("");
+
+            if (_lastForecastData != null)
             {
-                HourlyPlotControl.Plot.Clear();
-                var hourlyData = forecastData.List.Take(8).ToList();
+                UpdateMainChart(_lastForecastData);
+            }
 
-                if (hourlyData.Any())
-                {
-                    var dates = hourlyData.Select(x => x.DateTime.ToOADate()).ToArray();
-                    var temps = hourlyData.Select(x => x.Main.Temp).ToArray();
+            ChartControl.Refresh();
+        }
 
-                    var scatter = HourlyPlotControl.Plot.Add.Scatter(dates, temps);
-                    scatter.LineWidth = 2;
-                    scatter.Color = ScottPlot.Colors.Blue;
-                    scatter.MarkerSize = 6;
+        private void UpdateChartsIfLoaded()
+        {
+            if (HourlyPlotControl?.Plot != null && _lastForecastData != null)
+            {
+                UpdateHourlyChart(_lastForecastData);
+            }
 
-                    HourlyPlotControl.Plot.Axes.DateTimeTicksBottom();
-                    HourlyPlotControl.Plot.Title("");
-                    HourlyPlotControl.Plot.YLabel("°C");
-                    HourlyPlotControl.Plot.HideGrid();
-                    HourlyPlotControl.UserInputProcessor.IsEnabled = false;
-                    HourlyPlotControl.Refresh();
-                }
+            if (ChartControl?.Plot != null && _lastForecastData != null)
+            {
+                UpdateMainChart(_lastForecastData);
             }
         }
 
+        private void UpdateHourlyChart(ForecastResponse forecastData)
+        {
+            if (HourlyPlotControl?.Plot == null) return;
+
+            HourlyPlotControl.Plot.Clear();
+            var hourlyData = forecastData.List.Take(8).ToList();
+
+            if (hourlyData.Any())
+            {
+                var dates = hourlyData.Select(x => x.DateTime.ToOADate()).ToArray();
+                var temps = hourlyData.Select(x => x.Main.Temp).ToArray();
+
+                var scatter = HourlyPlotControl.Plot.Add.Scatter(dates, temps);
+                scatter.LineWidth = 3;
+                scatter.Color = ScottPlot.Colors.Blue;
+                scatter.MarkerSize = 8;
+                scatter.MarkerShape = ScottPlot.MarkerShape.OpenCircle;
+                scatter.MarkerColor = ScottPlot.Colors.Blue;
+
+                HourlyPlotControl.Plot.Axes.DateTimeTicksBottom();
+                HourlyPlotControl.Plot.YLabel("°C");
+                HourlyPlotControl.UserInputProcessor.IsEnabled = false;
+
+                HourlyPlotControl.Refresh();
+            }
+        }
+
+        private void UpdateMainChart(ForecastResponse forecastData)
+        {
+            if (ChartControl?.Plot == null) return;
+
+            ChartControl.Plot.Clear();
+            var items = forecastData.List.Take(24).ToList();
+
+            if (items.Any())
+            {
+                var dates = items.Select(i => i.DateTime.ToOADate()).ToArray();
+                var temps = items.Select(i => i.Main.Temp).ToArray();
+
+                var scatter = ChartControl.Plot.Add.Scatter(dates, temps);
+                scatter.LineWidth = 4;
+                scatter.Color = ScottPlot.Colors.Red;
+                scatter.MarkerSize = 10;
+                scatter.MarkerShape = ScottPlot.MarkerShape.OpenCircle;
+                scatter.MarkerColor = ScottPlot.Colors.Red;
+
+                ChartControl.Plot.Axes.DateTimeTicksBottom();
+
+                ChartControl.Refresh();
+            }
+        }
+
+        // ======== КОМАНДЫ ========
         [RelayCommand]
         public void AddToFavorites()
         {

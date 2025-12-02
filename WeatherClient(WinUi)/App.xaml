@@ -1,10 +1,86 @@
-<Application
+﻿<Application
     x:Class="WeatherClient.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:WeatherClient">
+    xmlns:local="using:WeatherClient"
+    xmlns:converters="using:WeatherClient.Converters"
+    xmlns:media="using:Microsoft.UI.Xaml.Media"
+    xmlns:lottie="using:CommunityToolkit.WinUI.Lottie">
 
     <Application.Resources>
-        <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- ✅ ГОЛУБОЙ ACRYLIC (аналог Mica с цветом) -->
+            <media:AcrylicBrush x:Key="AppBackgroundAcrylic" 
+                                TintColor="#4AC3EB" 
+                                TintOpacity="0.8" 
+                                FallbackColor="#4AC3EB"/>
+
+            <!-- Градиент для карточек -->
+            <media:LinearGradientBrush x:Key="CardGradientBrush" 
+                                       StartPoint="0,0" 
+                                       EndPoint="1,1">
+                <GradientStop Color="#62B0DD" Offset="0.0"/>
+                <GradientStop Color="#59A6D7" Offset="0.5"/>
+                <GradientStop Color="#529DC9" Offset="1.0"/>
+            </media:LinearGradientBrush>
+
+            <!-- АНИМАЦИИ -->
+            <lottie:LottieVisualSource x:Key="SunnyAnimation" UriSource="ms-appx:///Assets/WeatherAnimations/sunny.json"/>
+            <lottie:LottieVisualSource x:Key="CloudyAnimation" UriSource="ms-appx:///Assets/WeatherAnimations/cloudy.json"/>
+            <lottie:LottieVisualSource x:Key="PartlyCloudyAnimation" UriSource="ms-appx:///Assets/WeatherAnimations/partly_cloudy.json"/>
+            <lottie:LottieVisualSource x:Key="RainyAnimation" UriSource="ms-appx:///Assets/WeatherAnimations/rainy.json"/>
+            <lottie:LottieVisualSource x:Key="SnowyAnimation" UriSource="ms-appx:///Assets/WeatherAnimations/snowy.json"/>
+            <lottie:LottieVisualSource x:Key="ThunderAnimation" UriSource="ms-appx:///Assets/WeatherAnimations/thunder.json"/>
+
+            <!-- Конвертеры -->
+            <converters:FavoriteIconConverter x:Key="FavoriteIconConverter"/>
+            <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+            <converters:InverseNullToVisibilityConverter x:Key="InverseNullToVisibilityConverter"/>
+
+            <!-- Стили -->
+            <Style TargetType="Border" x:Key="CardStyle">
+                <Setter Property="CornerRadius" Value="16"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+                <Setter Property="Padding" Value="20"/>
+                <Setter Property="Background" Value="{StaticResource CardGradientBrush}"/>
+                <Setter Property="Transitions">
+                    <Setter.Value>
+                        <TransitionCollection>
+                            <EntranceThemeTransition FromVerticalOffset="50"/>
+                        </TransitionCollection>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style TargetType="Border" x:Key="NavigationPanelStyle">
+                <Setter Property="Background" Value="{StaticResource CardGradientBrush}"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="CornerRadius" Value="0,24,24,0"/>
+                <Setter Property="Padding" Value="8,20,8,20"/>
+            </Style>
+
+            <Style TargetType="Button" x:Key="NavigationButtonStyle">
+                <Setter Property="Width" Value="48"/>
+                <Setter Property="Height" Value="48"/>
+                <Setter Property="CornerRadius" Value="24"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Background" Value="Transparent"/>
+            </Style>
+
+            <Style TargetType="Button" x:Key="RevealButtonStyle">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Padding" Value="8"/>
+                <Setter Property="Width" Value="40"/>
+                <Setter Property="Height" Value="40"/>
+                <Setter Property="CornerRadius" Value="20"/>
+                <Setter Property="HorizontalAlignment" Value="Right"/>
+            </Style>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

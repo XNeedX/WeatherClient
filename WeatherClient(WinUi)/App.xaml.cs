@@ -1,5 +1,4 @@
 ﻿using Microsoft.UI.Xaml;
-using WeatherClient.Views;
 
 namespace WeatherClient
 {
@@ -13,12 +12,13 @@ namespace WeatherClient
             this.UnhandledException += App_UnhandledException;
         }
 
-        // Логирование необработанных исключений
         private void App_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
         {
             e.Handled = true;
-            System.Diagnostics.Debug.WriteLine($"Критическая необработанная ошибка: {e.Message}");
-            System.Diagnostics.Debug.WriteLine($"Источник: {e.Exception.Source}");
+            System.Diagnostics.Debug.WriteLine($"=== КРИТИЧЕСКАЯ ОШИБКА ===");
+            System.Diagnostics.Debug.WriteLine($"Сообщение: {e.Message}");
+            System.Diagnostics.Debug.WriteLine($"Источник: {e.Exception?.Source}");
+            System.Diagnostics.Debug.WriteLine($"Стек: {e.Exception?.StackTrace}");
         }
 
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
