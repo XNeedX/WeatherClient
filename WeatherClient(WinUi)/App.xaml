@@ -14,47 +14,54 @@
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- ✅ ЦВЕТОВЫЕ РЕСУРСЫ ДЛЯ ДИНАМИЧЕСКОЙ ТЕМЫ -->
-            <Color x:Key="BackgroundColor">#62B0DD</Color>
-            <Color x:Key="CardColor1">#62B0DD</Color>
-            <Color x:Key="CardColor2">#59A6D7</Color>
-            <Color x:Key="CardColor3">#529DC9</Color>
+            <!--====== ТЕМАТИЧЕСКИЕ СЛОВАРИ (только цвета) ======-->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <Color x:Key="BackgroundColor">#62B0DD</Color>
+                    <Color x:Key="CardColor1">#62B0DD</Color>
+                    <Color x:Key="CardColor2">#59A6D7</Color>
+                    <Color x:Key="CardColor3">#529DC9</Color>
+                </ResourceDictionary>
 
-            <!-- Цвета для темной темы -->
-            <Color x:Key="DarkBackgroundColor">#09316F</Color>
-            <Color x:Key="DarkCardColor">#0B3788</Color>
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="BackgroundColor">#09316F</Color>
+                    <Color x:Key="CardColor1">#0B3788</Color>
+                    <Color x:Key="CardColor2">#09316F</Color>
+                    <Color x:Key="CardColor3">#07275D</Color>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
 
-            <!-- Градиент для фона -->
-            <media:LinearGradientBrush x:Key="AppBackgroundGradient" 
-                                       StartPoint="0,0" 
-                                       EndPoint="0,1">
+            <!--====== ДИНАМИЧЕСКИЕ ГРАДИЕНТЫ (зависят от темы) ======-->
+            <media:LinearGradientBrush x:Key="AppBackgroundGradient"
+                                       StartPoint="0,0" EndPoint="0,1">
                 <GradientStop Color="{ThemeResource BackgroundColor}" Offset="0.0"/>
                 <GradientStop Color="#4AC3EB" Offset="0.5"/>
                 <GradientStop Color="{ThemeResource CardColor3}" Offset="1.0"/>
             </media:LinearGradientBrush>
 
-            <!-- Градиент для карточек (динамический) -->
-            <media:LinearGradientBrush x:Key="CardGradientBrush" 
-                                       StartPoint="0,0" 
-                                       EndPoint="1,1">
+            <media:LinearGradientBrush x:Key="CardGradientBrush"
+                                       StartPoint="0,0" EndPoint="1,1">
                 <GradientStop Color="{ThemeResource CardColor1}" Offset="0.0"/>
                 <GradientStop Color="{ThemeResource CardColor2}" Offset="0.5"/>
                 <GradientStop Color="{ThemeResource CardColor3}" Offset="1.0"/>
             </media:LinearGradientBrush>
 
-            <!-- Фон для внутренних карточек прогноза -->
+            <!--====== СТАТИЧЕСКИЕ ЦВЕТА (если нужны в коде) ======-->
+            <Color x:Key="DarkBackgroundColor">#09316F</Color>
+            <Color x:Key="DarkCardColor">#0B3788</Color>
+
+            <!--====== ФОН ПРОГНОЗА ======-->
             <media:SolidColorBrush x:Key="ForecastItemBackgroundBrush" Color="#20000000"/>
 
-            <!-- Конвертеры -->
+            <!--====== КОНВЕРТЕРЫ ======-->
             <converters:FavoriteIconConverter x:Key="FavoriteIconConverter"/>
             <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
             <converters:InverseNullToVisibilityConverter x:Key="InverseNullToVisibilityConverter"/>
             <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
             <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
             <converters:EnumToIntConverter x:Key="EnumToIntConverter"/>
-            <!-- ✅ Исправлен конвертер -->
 
-            <!-- АНИМАЦИИ -->
+            <!--====== АНИМАЦИИ ======-->
             <lottie:LottieVisualSource x:Key="SunnyAnimation" UriSource="ms-appx:///Assets/WeatherAnimations/sunny.json"/>
             <lottie:LottieVisualSource x:Key="CloudyAnimation" UriSource="ms-appx:///Assets/WeatherAnimations/cloudy.json"/>
             <lottie:LottieVisualSource x:Key="PartlyCloudyAnimation" UriSource="ms-appx:///Assets/WeatherAnimations/partly_cloudy.json"/>
@@ -62,10 +69,9 @@
             <lottie:LottieVisualSource x:Key="SnowyAnimation" UriSource="ms-appx:///Assets/WeatherAnimations/snowy.json"/>
             <lottie:LottieVisualSource x:Key="ThunderAnimation" UriSource="ms-appx:///Assets/WeatherAnimations/thunder.json"/>
 
-            <!-- СТИЛИ С ThemeResource -->
+            <!--====== СТИЛИ КАРТОЧЕК / ПАНЕЛЕЙ (динамические) ======-->
             <Style TargetType="Border" x:Key="CardStyle">
                 <Setter Property="Background" Value="{ThemeResource CardGradientBrush}"/>
-                <!-- ✅ ThemeResource -->
                 <Setter Property="CornerRadius" Value="16"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="BorderBrush" Value="#40FFFFFF"/>
@@ -81,12 +87,12 @@
 
             <Style TargetType="Border" x:Key="NavigationPanelStyle">
                 <Setter Property="Background" Value="{ThemeResource CardGradientBrush}"/>
-                <!-- ✅ ThemeResource -->
                 <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="CornerRadius" Value="0,24,24,0"/>
                 <Setter Property="Padding" Value="8,20,8,20"/>
             </Style>
 
+            <!--====== СТИЛИ КНОПОК ======-->
             <Style TargetType="Button" x:Key="NavigationButtonStyle">
                 <Setter Property="Width" Value="48"/>
                 <Setter Property="Height" Value="48"/>
