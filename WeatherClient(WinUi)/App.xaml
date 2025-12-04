@@ -5,7 +5,8 @@
     xmlns:local="using:WeatherClient"
     xmlns:converters="using:WeatherClient.Converters"
     xmlns:media="using:Microsoft.UI.Xaml.Media"
-    xmlns:lottie="using:CommunityToolkit.WinUI.Lottie">
+    xmlns:lottie="using:CommunityToolkit.WinUI.Lottie"
+    xmlns:animatedvisuals="using:Microsoft.UI.Xaml.Controls">
 
     <Application.Resources>
         <ResourceDictionary>
@@ -13,20 +14,45 @@
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- ✅ ГОЛУБОЙ ACRYLIC (аналог Mica с цветом) -->
-            <media:AcrylicBrush x:Key="AppBackgroundAcrylic" 
-                                TintColor="#4AC3EB" 
-                                TintOpacity="0.8" 
-                                FallbackColor="#4AC3EB"/>
+            <!-- ✅ ЦВЕТОВЫЕ РЕСУРСЫ ДЛЯ ДИНАМИЧЕСКОЙ ТЕМЫ -->
+            <Color x:Key="BackgroundColor">#62B0DD</Color>
+            <Color x:Key="CardColor1">#62B0DD</Color>
+            <Color x:Key="CardColor2">#59A6D7</Color>
+            <Color x:Key="CardColor3">#529DC9</Color>
 
-            <!-- Градиент для карточек -->
+            <!-- Цвета для темной темы -->
+            <Color x:Key="DarkBackgroundColor">#09316F</Color>
+            <Color x:Key="DarkCardColor">#0B3788</Color>
+
+            <!-- Градиент для фона -->
+            <media:LinearGradientBrush x:Key="AppBackgroundGradient" 
+                                       StartPoint="0,0" 
+                                       EndPoint="0,1">
+                <GradientStop Color="{ThemeResource BackgroundColor}" Offset="0.0"/>
+                <GradientStop Color="#4AC3EB" Offset="0.5"/>
+                <GradientStop Color="{ThemeResource CardColor3}" Offset="1.0"/>
+            </media:LinearGradientBrush>
+
+            <!-- Градиент для карточек (динамический) -->
             <media:LinearGradientBrush x:Key="CardGradientBrush" 
                                        StartPoint="0,0" 
                                        EndPoint="1,1">
-                <GradientStop Color="#62B0DD" Offset="0.0"/>
-                <GradientStop Color="#59A6D7" Offset="0.5"/>
-                <GradientStop Color="#529DC9" Offset="1.0"/>
+                <GradientStop Color="{ThemeResource CardColor1}" Offset="0.0"/>
+                <GradientStop Color="{ThemeResource CardColor2}" Offset="0.5"/>
+                <GradientStop Color="{ThemeResource CardColor3}" Offset="1.0"/>
             </media:LinearGradientBrush>
+
+            <!-- Фон для внутренних карточек прогноза -->
+            <media:SolidColorBrush x:Key="ForecastItemBackgroundBrush" Color="#20000000"/>
+
+            <!-- Конвертеры -->
+            <converters:FavoriteIconConverter x:Key="FavoriteIconConverter"/>
+            <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+            <converters:InverseNullToVisibilityConverter x:Key="InverseNullToVisibilityConverter"/>
+            <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
+            <converters:EnumToIntConverter x:Key="EnumToIntConverter"/>
+            <!-- ✅ Исправлен конвертер -->
 
             <!-- АНИМАЦИИ -->
             <lottie:LottieVisualSource x:Key="SunnyAnimation" UriSource="ms-appx:///Assets/WeatherAnimations/sunny.json"/>
@@ -36,18 +62,14 @@
             <lottie:LottieVisualSource x:Key="SnowyAnimation" UriSource="ms-appx:///Assets/WeatherAnimations/snowy.json"/>
             <lottie:LottieVisualSource x:Key="ThunderAnimation" UriSource="ms-appx:///Assets/WeatherAnimations/thunder.json"/>
 
-            <!-- Конвертеры -->
-            <converters:FavoriteIconConverter x:Key="FavoriteIconConverter"/>
-            <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
-            <converters:InverseNullToVisibilityConverter x:Key="InverseNullToVisibilityConverter"/>
-
-            <!-- Стили -->
+            <!-- СТИЛИ С ThemeResource -->
             <Style TargetType="Border" x:Key="CardStyle">
+                <Setter Property="Background" Value="{ThemeResource CardGradientBrush}"/>
+                <!-- ✅ ThemeResource -->
                 <Setter Property="CornerRadius" Value="16"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="BorderBrush" Value="#40FFFFFF"/>
                 <Setter Property="Padding" Value="20"/>
-                <Setter Property="Background" Value="{StaticResource CardGradientBrush}"/>
                 <Setter Property="Transitions">
                     <Setter.Value>
                         <TransitionCollection>
@@ -58,7 +80,8 @@
             </Style>
 
             <Style TargetType="Border" x:Key="NavigationPanelStyle">
-                <Setter Property="Background" Value="{StaticResource CardGradientBrush}"/>
+                <Setter Property="Background" Value="{ThemeResource CardGradientBrush}"/>
+                <!-- ✅ ThemeResource -->
                 <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="CornerRadius" Value="0,24,24,0"/>
                 <Setter Property="Padding" Value="8,20,8,20"/>
@@ -70,6 +93,7 @@
                 <Setter Property="CornerRadius" Value="24"/>
                 <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Foreground" Value="White"/>
             </Style>
 
             <Style TargetType="Button" x:Key="RevealButtonStyle">

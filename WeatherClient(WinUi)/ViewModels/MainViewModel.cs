@@ -1,7 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Dispatching;
-using Microsoft.UI.Xaml;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -22,11 +21,52 @@ namespace WeatherClient.ViewModels
         private readonly DispatcherQueue _dispatcher;
         private List<string> _allCities = new();
         private ForecastResponse _lastForecastData;
+        private WeatherResponse _lastWeatherData;
 
+        [ObservableProperty] private bool _isSettingsPanelOpen;
+        [ObservableProperty] private TemperatureUnit _selectedTempUnit;
+        [ObservableProperty] private WindSpeedUnit _selectedWindUnit;
+  
+        partial void OnSelectedTempUnitChanged(TemperatureUnit value)
+        {
+            SettingsService.TemperatureUnit = value;
+            ApplySettingsChanges();
+        }
+
+        partial void OnSelectedWindUnitChanged(WindSpeedUnit value)
+        {
+            SettingsService.WindSpeedUnit = value;
+            ApplySettingsChanges();
+        }
+
+        private void ApplySettingsChanges()
+        {
+            if (_lastWeatherData == null) return;
+
+            _dispatcher.TryEnqueue(() =>
+            {
+                // Пересчитываем только значения, не метки
+                var data = _lastWeatherData;
+                var temp = SettingsService.ConvertTemperature(data.Main.Temp, _selectedTempUnit);
+                Temperature = $"{temp:F1}°{GetTempSymbol()}";
+
+                WindSpeed = FormatWindSpeed(data.Wind.Speed);
+                FeelsLikeValue = $"{SettingsService.ConvertTemperature(data.Main.FeelsLike, _selectedTempUnit):F1}°{GetTempSymbol()}";
+
+                UpdateChartsIfLoaded();
+            });
+        }
+
+        // ======== КОНСТРУКТОР ========
         public MainViewModel(DispatcherQueue dispatcher)
         {
             _dispatcher = dispatcher;
-            City = "Москва";
+            _selectedTempUnit = SettingsService.TemperatureUnit;
+            _selectedWindUnit = SettingsService.WindSpeedUnit;
+            _selectedTheme = SettingsService.AppTheme;
+            _isSettingsPanelOpen = false;
+            City = SettingsService.DefaultCity;
+
             DailyForecasts = new ObservableCollection<DailyForecastUiModel>();
             CitySuggestions = new ObservableCollection<CitySuggestionUiModel>();
             SearchHistory = new ObservableCollection<string>();
@@ -36,40 +76,50 @@ namespace WeatherClient.ViewModels
             UpdateFavoriteButtonState();
         }
 
+        [RelayCommand]
+        private void ToggleSettingsPanel()
+        {
+            IsSettingsPanelOpen = !IsSettingsPanelOpen;
+        }
+
+   
+
         // ======== СВОЙСТВА ПОГОДЫ ========
         [ObservableProperty] private string city;
         [ObservableProperty] private string temperature;
         [ObservableProperty] private string description;
-        [ObservableProperty] private string humidity;
+        [ObservableProperty] private string humidityValue;
         [ObservableProperty] private string pressure;
         [ObservableProperty] private string windSpeed;
         [ObservableProperty] private string sunrise;
         [ObservableProperty] private string sunset;
         [ObservableProperty] private string iconUrl;
-
-        // ======== ДОПОЛНИТЕЛЬНЫЕ ПОКАЗАТЕЛИ ========
-        [ObservableProperty] private string uvIndex;
-        [ObservableProperty] private string visibility;
-        [ObservableProperty] private string feelsLike;
+        [ObservableProperty] private string uvIndexValue;
+        [ObservableProperty] private string visibilityValue;
+        [ObservableProperty] private string feelsLikeValue;
         [ObservableProperty] private string currentDateTime;
-
-        // ======== АНИМАЦИЯ ПОГОДЫ ========
         [ObservableProperty] private object currentWeatherAnimation;
 
-        // ======== КОЛЛЕКЦИИ ========
         public ObservableCollection<DailyForecastUiModel> DailyForecasts { get; }
         [ObservableProperty] private ObservableCollection<CitySuggestionUiModel> citySuggestions;
         [ObservableProperty] private ObservableCollection<string> searchHistory;
         [ObservableProperty] public ObservableCollection<string> favoriteCities;
+        [ObservableProperty] private AppTheme _selectedTheme;
 
-        // ======== КОНТРОЛЫ ГРАФИКОВ ========
         public ScottPlot.WinUI.WinUIPlot? ChartControl { get; set; }
         public ScottPlot.WinUI.WinUIPlot? HourlyPlotControl { get; set; }
 
-        // ======== СОСТОЯНИЕ ========
         [ObservableProperty] private bool canAddToFavorites;
         [ObservableProperty] private string currentCityDisplayed = string.Empty;
 
+        // ======== ОСТАЛЬНОЙ КОД ========
+        partial void OnSelectedThemeChanged(AppTheme value)
+        {
+            SettingsService.AppTheme = value;
+
+            // ✅ КРИТИЧЕСКИ: применяем тему
+            ThemeService.ApplyTheme(value);
+        }
         private async Task LoadCityListAsync()
         {
             try
@@ -152,6 +202,9 @@ namespace WeatherClient.ViewModels
             var currentData = currentWeatherTask.Result;
             var forecastData = forecastTask.Result;
 
+            _lastWeatherData = currentData;
+            _lastForecastData = forecastData;
+
             _dispatcher.TryEnqueue(() =>
             {
                 UpdateCurrentWeatherUi(currentData);
@@ -163,16 +216,18 @@ namespace WeatherClient.ViewModels
         {
             if (data?.Weather?.Length > 0)
             {
-                Temperature = $"{data.Main.Temp:F1}°C";
+                var temp = SettingsService.ConvertTemperature(data.Main.Temp, _selectedTempUnit);
+                Temperature = $"{temp:F1}°{GetTempSymbol()}";
+
                 Description = data.Weather[0].Description;
-                Humidity = $"{data.Main.Humidity}%";
+                humidityValue = $"{data.Main.Humidity}%";
                 Pressure = $"{data.Main.Pressure} гПа";
-                WindSpeed = $"{data.Wind.Speed} м/с";
 
-                FeelsLike = $"{data.Main.FeelsLike:F1}°C";
-                Visibility = $"{data.Visibility / 1000.0:F1} км";
+                WindSpeed = FormatWindSpeed(data.Wind.Speed);
+                FeelsLikeValue = $"{SettingsService.ConvertTemperature(data.Main.FeelsLike, _selectedTempUnit):F1}°{GetTempSymbol()}";
+                VisibilityValue = $"{data.Visibility / 1000.0:F1} км";
 
-                UvIndex = CalculateUvIndex(data);
+                UvIndexValue = CalculateUvIndex(data);
 
                 var offset = TimeSpan.FromSeconds(data.Timezone);
                 Sunrise = data.Sys.Sunrise.ToOffset(offset).ToString("HH:mm");
@@ -184,10 +239,25 @@ namespace WeatherClient.ViewModels
                 CurrentCityDisplayed = City;
                 UpdateFavoriteButtonState();
 
-                // ✅ ОТЛОЖЕННАЯ ЗАГРУЗКА АНИМАЦИИ (с учетом описания)
                 _ = LoadAnimationSafely(data.Weather[0].Main, data.Weather[0].Description ?? "");
             }
         }
+
+        private string GetTempSymbol() => _selectedTempUnit switch
+        {
+            TemperatureUnit.Celsius => "C",
+            TemperatureUnit.Fahrenheit => "F",
+            TemperatureUnit.Kelvin => "K",
+            _ => "C"
+        };
+
+        private string FormatWindSpeed(double ms) => _selectedWindUnit switch
+        {
+            WindSpeedUnit.Ms => $"{ms:F1} м/с",
+            WindSpeedUnit.Kmh => $"{ms * 3.6:F1} км/ч",
+            WindSpeedUnit.Knots => $"{ms * 1.94384:F1} узл",
+            _ => $"{ms:F1} м/с"
+        };
 
         private string CalculateUvIndex(WeatherResponse data)
         {
@@ -214,22 +284,21 @@ namespace WeatherClient.ViewModels
             try
             {
                 await Task.Delay(200);
-
                 _dispatcher.TryEnqueue(() =>
                 {
-                    // Пытаемся найти анимацию
-                    var animation = GetAnimationByWeather(weatherMain, description);
-
-                    // Если не нашли, оставляем null (тогда будет только иконка)
-                    CurrentWeatherAnimation = animation;
-
-                    // Если анимация есть, скрываем иконку (необязательно, иконка под ней)
-                    // Если анимации нет - показывается иконка по умолчанию
+                    try
+                    {
+                        var animation = GetAnimationByWeather(weatherMain, description);
+                        CurrentWeatherAnimation = animation;
+                    }
+                    catch
+                    {
+                        CurrentWeatherAnimation = null;
+                    }
                 });
             }
             catch
             {
-                // В случае ошибки просто показываем иконку (устанавливаем null)
                 _dispatcher.TryEnqueue(() => CurrentWeatherAnimation = null);
             }
         }
@@ -258,13 +327,11 @@ namespace WeatherClient.ViewModels
                     _ => "SunnyAnimation"
                 };
 
-                // Проверяем, существует ли ресурс
-                if (Application.Current.Resources.ContainsKey(key))
+                if (Microsoft.UI.Xaml.Application.Current.Resources.ContainsKey(key))
                 {
-                    return Application.Current.Resources[key];
+                    return Microsoft.UI.Xaml.Application.Current.Resources[key];
                 }
 
-                // РЕСУРС НЕ НАЙДЕН - возвращаем null
                 System.Diagnostics.Debug.WriteLine($"⚠️ Ресурс {key} не найден в Application.Resources");
                 return null;
             }
@@ -310,7 +377,6 @@ namespace WeatherClient.ViewModels
         public void InitializeHourlyChart()
         {
             if (HourlyPlotControl?.Plot == null) return;
-
 
             HourlyPlotControl.Plot.Axes.Color(ScottPlot.Colors.Gray);
             HourlyPlotControl.Plot.Grid.MajorLineColor = ScottPlot.Colors.Gray.WithOpacity(0.1);

@@ -6,7 +6,6 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
 using ScottPlot.WinUI;
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 using WeatherClient.Models;
 using WeatherClient.ViewModels;
@@ -46,7 +45,7 @@ namespace WeatherClient.Views
                 System.Diagnostics.Debug.WriteLine($"Ошибка установки размера: {ex.Message}");
             }
 
-            DispatcherQueue? dq = this.DispatcherQueue;
+            DispatcherQueue dq = this.DispatcherQueue;
             ViewModel = new MainViewModel(dq);
 
             if (this.Content is FrameworkElement root)
@@ -76,16 +75,17 @@ namespace WeatherClient.Views
 
         private void WeatherButton_Click(object sender, RoutedEventArgs e)
         {
+            // ✅ Сначала закрываем панель настроек
+            ViewModel.IsSettingsPanelOpen = false;
+
+            // Затем переходим на главный экран
             Navigate("Current");
-            WeatherButton.Background = Application.Current.Resources["SystemAccentColor"] as Microsoft.UI.Xaml.Media.Brush;
-            SettingsButton.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
         }
 
+        // ✅ ЕДИНСТВЕННЫЙ ОБРАБОТЧИК НАСТРОЕК БЕЗ ДУБЛИКАТОВ
         private void SettingsButton_Click(object sender, RoutedEventArgs e)
         {
-            Navigate("Favorites");
-            SettingsButton.Background = Application.Current.Resources["SystemAccentColor"] as Microsoft.UI.Xaml.Media.Brush;
-            WeatherButton.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            System.Diagnostics.Debug.WriteLine("Настройки открыты");
         }
 
         private void Navigate(string navItemTag, NavigationTransitionInfo transitionInfo = null)
@@ -159,5 +159,6 @@ namespace WeatherClient.Views
             var button = flyoutPresenter?.Parent as Button;
             button?.Flyout?.Hide();
         }
+
     }
 }
