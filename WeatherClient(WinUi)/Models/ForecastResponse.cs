@@ -41,6 +41,9 @@ namespace WeatherClient.Models
         [JsonPropertyName("dt_txt")]
         public string DtTxt { get; set; } // Текстовое время "2023-10-27 12:00:00"
 
+        [JsonPropertyName("pop")]
+        public double PrecipitationProbability { get; set; }
+
         // Вспомогательное свойство для удобной работы с датой
         public DateTime DateTime => DateTime.Parse(DtTxt);
     }
@@ -56,6 +59,7 @@ namespace WeatherClient.Models
         public string IconUrl { get; set; }
         public string Description { get; set; }
         // Форматированные строки для UI
+        public double MoonPhase { get; set; }
         public string MaxTempStr => $"{MaxTemp:F0}°";
         public string MinTempStr => $"{MinTemp:F0}°";
     }

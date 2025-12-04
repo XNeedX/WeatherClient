@@ -3,11 +3,14 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Animation;
 using ScottPlot.WinUI;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using WeatherClient.Models;
+using WeatherClient.Services;
 using WeatherClient.ViewModels;
 using WinRT;
 
@@ -65,6 +68,21 @@ namespace WeatherClient.Views
             try
             {
                 await ViewModel.GetWeatherAsync();
+                if (string.IsNullOrWhiteSpace(SettingsService.DefaultCity) ||
+    SettingsService.DefaultCity == "Москва")
+                {
+                    try
+                    {
+                        var city = await LocationService.GetCityByLocationAsync();
+                        if (!string.IsNullOrWhiteSpace(city))
+                        {
+                            ViewModel.City = city;
+                            SettingsService.DefaultCity = city;   
+                            await ViewModel.GetWeatherAsync();    
+                        }
+                    }
+                    catch { }
+                }
                 Navigate("Current");
             }
             catch (Exception ex)
@@ -133,6 +151,64 @@ namespace WeatherClient.Views
                 ViewModel.ChartControl = plot;
                 ViewModel.InitializeMainChart();
             }
+        }
+
+        private void HourlyScroll_PointerWheelChanged(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            var sv = (ScrollViewer)sender;
+            int delta = e.GetCurrentPoint(sv).Properties.MouseWheelDelta;
+            sv.ScrollToHorizontalOffset(sv.HorizontalOffset - delta);
+            e.Handled = true;   // подавляем системную прокрутку
+        }
+
+        private void DailyScroll_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
+        {
+            var sv = (ScrollViewer)sender;
+            int delta = e.GetCurrentPoint(sv).Properties.MouseWheelDelta;
+            sv.ScrollToHorizontalOffset(sv.HorizontalOffset - delta);
+            e.Handled = true;
+        }
+
+        private void ChartsButton_Click(object sender, RoutedEventArgs e)
+        {
+            ViewModel.IsSettingsPanelOpen = false;
+            Navigate("Charts");          // тот же метод, что и для "Current"/"Favorites"
+        }
+
+        private void PressureChart_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is not ScottPlot.WinUI.WinUIPlot plt || ViewModel?.LastForecastData == null) return;
+
+            var data = ViewModel.LastForecastData;
+            var xs = data.List.Select(f => f.DateTime.ToOADate()).ToArray();
+            var press = data.List.Select(f => f.Main.Pressure * 0.75006).ToArray(); // мм рт. ст.
+
+            plt.Plot.Clear();
+            plt.Plot.Add.Scatter(xs, press, color: ScottPlot.Colors.Green);
+            plt.Plot.YLabel("мм рт. ст.");
+            plt.Plot.Axes.DateTimeTicksBottom();
+            plt.Plot.Grid.IsVisible = true;
+            plt.Refresh();
+        }
+
+        // Вероятность осадков
+        private void PopChart_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is not ScottPlot.WinUI.WinUIPlot plt || ViewModel?.LastForecastData == null) return;
+
+            var data = ViewModel.LastForecastData;
+            var xs = data.List.Select(f => f.DateTime.ToOADate()).ToArray();
+            var pops = data.List.Select(f => f.PrecipitationProbability * 100).ToArray(); // 0-100 %
+
+            plt.Plot.Clear();
+            var bars = plt.Plot.Add.Bars(xs, pops);
+            bars.Color = ScottPlot.Colors.DodgerBlue.WithAlpha(180);
+            plt.Plot.Add.HorizontalLine(50, color: ScottPlot.Colors.Gray,
+                               pattern: ScottPlot.LinePattern.Dashed);
+            plt.Plot.YLabel("%");
+            plt.Plot.Axes.DateTimeTicksBottom();
+            plt.Plot.Grid.IsVisible = true;
+            plt.Refresh();
         }
 
         private void CityAutoSuggestBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)

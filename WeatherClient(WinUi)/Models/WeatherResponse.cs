@@ -13,6 +13,9 @@ namespace WeatherClient.Models
         public long Timezone { get; set; }
         public string Name { get; set; } = "";
 
+        [JsonPropertyName("moon_ico")]   // для OneCall /daily/0/moon_ico
+        public string MoonIconUrl { get; set; }
+
         public CloudsInfo Clouds { get; set; } = new CloudsInfo();
 
         public int Visibility { get; set; }
@@ -59,5 +62,12 @@ namespace WeatherClient.Models
     {
         [JsonPropertyName("all")]
         public int CloudCoverage { get; set; }
-    } 
+    }
+
+    public class HourlyItem
+    {
+        public string Time { get; set; }
+        public string Temp { get; set; }
+        public string IconUrl { get; set; }
+    }
 }

@@ -168,7 +168,10 @@
                                 <StackPanel>
                                     <TextBlock Text="Прогноз на 7 дней" FontSize="16" FontWeight="SemiBold" 
                                                Margin="0,0,0,12" Foreground="White"/>
-                                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Height="220">
+                                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Height="220"
+                                                                HorizontalScrollMode="Enabled"
+                                                                  VerticalScrollMode="Disabled"
+                                                                  PointerWheelChanged="DailyScroll_PointerWheelChanged">
                                         <ItemsControl ItemsSource="{Binding DailyForecasts}">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
@@ -221,9 +224,45 @@
                                     <TextBlock Text="Почасовой прогноз" FontSize="16" FontWeight="SemiBold" 
                                                Margin="16,16,16,8" Foreground="White"/>
 
-                                    <Border Grid.Row="1" Margin="8" CornerRadius="8" Background="Transparent">
-                                        <scott:WinUIPlot x:Name="HourlyPlot" Height="180"
-                                                         Background="Transparent" Loaded="HourlyPlot_Loaded"/>
+                                    <Border Grid.Row="1" Style="{StaticResource CardStyle}" Padding="16">
+                                        <StackPanel>
+                                            <TextBlock Text="По часам" FontSize="16" FontWeight="SemiBold"
+                                                    Foreground="White" Margin="0,0,0,12"/>
+
+                                            <!-- 1. ScrollViewer слушает колесико -->
+                                            <!-- Горизонтальный скролл + колесо -->
+                                            <ScrollViewer x:Name="HourlyScroll"
+                                                      HorizontalScrollBarVisibility="Auto"
+                                                      VerticalScrollBarVisibility="Disabled"
+                                                      Height="130"
+                                                      HorizontalScrollMode="Enabled"
+                                                      VerticalScrollMode="Disabled"
+                                                      PointerWheelChanged="HourlyScroll_PointerWheelChanged">
+                                                <ItemsControl ItemsSource="{Binding HourlyForecast}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <StackPanel Orientation="Horizontal" Spacing="10"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border Width="80" Height="105" CornerRadius="10"
+                                                                    Background="{ThemeResource ForecastItemBackgroundBrush}"
+                                                                    BorderBrush="#30FFFFFF" BorderThickness="1"
+                                                                    Padding="6">
+                                                                <StackPanel HorizontalAlignment="Center" Spacing="4">
+                                                                    <TextBlock Text="{Binding Time}" FontSize="13"
+                                                                                Foreground="#C0FFFFFF" HorizontalAlignment="Center"/>
+                                                                    <Image Source="{Binding IconUrl}" Width="36" Height="36"/>
+                                                                    <TextBlock Text="{Binding Temp}" FontSize="16" FontWeight="SemiBold"
+                                                                             Foreground="White" HorizontalAlignment="Center"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
+                                        </StackPanel>
                                     </Border>
                                 </Grid>
                             </Border>
@@ -232,18 +271,52 @@
                 </DataTemplate>
 
                 <DataTemplate x:Key="ChartsTemplate">
-                    <Grid Padding="0,24,0,0">
-                        <Border Style="{StaticResource CardStyle}" Padding="24">
-                            <StackPanel Spacing="16">
-                                <TextBlock Text="Температура на 3 дня" FontSize="24" FontWeight="SemiBold" 
-                                           Foreground="White"/>
-                                <Border Height="400" CornerRadius="8" Background="Transparent" Padding="4">
-                                    <scott:WinUIPlot x:Name="TemperatureChart" Background="Transparent" 
-                                                     Loaded="TemperatureChart_Loaded"/>
-                                </Border>
-                            </StackPanel>
-                        </Border>
-                    </Grid>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  Padding="24,24,24,40">
+                        <StackPanel Spacing="24">
+
+                            <!-- 1. Температура на 3 дня (уже был) -->
+                            <Border Style="{StaticResource CardStyle}" Padding="24">
+                                <StackPanel Spacing="16">
+                                    <TextBlock Text="Температура (3 дня, 3 ч)" FontSize="22"
+                               FontWeight="SemiBold" Foreground="White"/>
+                                    <Border Height="260" CornerRadius="8" Background="Transparent">
+                                        <scott:WinUIPlot x:Name="TemperatureChart"
+                                         Background="Transparent"
+                                         Loaded="TemperatureChart_Loaded"/>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 2. Давление -->
+                            <Border Style="{StaticResource CardStyle}" Padding="24">
+                                <StackPanel Spacing="16">
+                                    <TextBlock Text="Давление" FontSize="22"
+                               FontWeight="SemiBold" Foreground="White"/>
+                                    <Border Height="200" CornerRadius="8" Background="Transparent">
+                                        <scott:WinUIPlot x:Name="PressureChart"
+                                         Background="Transparent"
+                                         Loaded="PressureChart_Loaded"/>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 3. Вероятность осадков -->
+                            <Border Style="{StaticResource CardStyle}" Padding="24">
+                                <StackPanel Spacing="16">
+                                    <TextBlock Text="Вероятность осадков (%)" FontSize="22"
+                               FontWeight="SemiBold" Foreground="White"/>
+                                    <Border Height="200" CornerRadius="8" Background="Transparent">
+                                        <scott:WinUIPlot x:Name="PopChart"
+                                         Background="Transparent"
+                                         Loaded="PopChart_Loaded"/>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                        </StackPanel>
+                    </ScrollViewer>
                 </DataTemplate>
 
                 <DataTemplate x:Key="FavoritesTemplate">
@@ -340,6 +413,11 @@
                     <Button x:Name="WeatherButton" Style="{StaticResource NavigationButtonStyle}" 
                             Click="WeatherButton_Click" ToolTipService.ToolTip="Погода">
                         <FontIcon Glyph="&#xE909;" FontSize="20" HorizontalAlignment="Center"/>
+                    </Button>
+
+                    <Button x:Name="ChartsButton" Style="{StaticResource NavigationButtonStyle}"
+                        Click="ChartsButton_Click" ToolTipService.ToolTip="Графики">
+                        <FontIcon Glyph="&#xE9D9;" FontSize="20"/>
                     </Button>
 
                     <Button Style="{StaticResource NavigationButtonStyle}" 
