@@ -91,6 +91,30 @@ namespace WeatherClient.Views
             }
         }
 
+        private void AiButton_Click(object sender, RoutedEventArgs e)
+        {
+            ViewModel.IsSettingsPanelOpen = false;
+            AiPanel.Visibility = Visibility.Visible;
+
+            // контролы уже привязаны – просто синхронизируем начальные значения
+            ViewModel.GenderIndex = SettingsService.GenderIndex;
+            ViewModel.Age = SettingsService.Age;
+            ViewModel.StyleIndex = SettingsService.StyleIndex;
+        }
+
+        private void CloseAiPanel_Click(object sender, RoutedEventArgs e)
+            => AiPanel.Visibility = Visibility.Collapsed;
+
+        // клик вне окна – тоже закрываем
+        private void AiPanel_PointerPressed(object sender, PointerRoutedEventArgs e)
+        {
+            if (e.OriginalSource == AiPanel)   // только фон
+                AiPanel.Visibility = Visibility.Collapsed;
+        }
+        // подавляем всплытие при клике внутри окна
+        private void AiBorder_PointerPressed(object sender, PointerRoutedEventArgs e)
+            => e.Handled = true;
+
         private void WeatherButton_Click(object sender, RoutedEventArgs e)
         {
             // ✅ Сначала закрываем панель настроек

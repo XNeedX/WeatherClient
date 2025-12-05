@@ -420,6 +420,11 @@
                         <FontIcon Glyph="&#xE9D9;" FontSize="20"/>
                     </Button>
 
+                    <Button x:Name="AiButton" Style="{StaticResource NavigationButtonStyle}"
+                        Click="AiButton_Click" ToolTipService.ToolTip="AI-стилист">
+                        <FontIcon Glyph="&#xE8B1;" FontSize="20"/>
+                    </Button>
+
                     <Button Style="{StaticResource NavigationButtonStyle}" 
                             Command="{Binding ToggleSettingsPanelCommand}"
                             ToolTipService.ToolTip="Настройки">
@@ -484,6 +489,71 @@
                     </TransitionCollection>
                 </Frame.ContentTransitions>
             </Frame>
+        </Grid>
+        <Grid x:Name="AiPanel" Grid.Row="0" Grid.RowSpan="2" Grid.Column="0" Grid.ColumnSpan="2"
+          Background="#80000000"
+          Visibility="Collapsed"
+          PointerPressed="AiPanel_PointerPressed">
+            <Border Width="420" Height="560" CornerRadius="24"
+                Background="{ThemeResource CardGradientBrush}"
+                BorderBrush="#40FFFFFF" BorderThickness="1"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                PointerPressed="AiBorder_PointerPressed">
+                <ScrollViewer Padding="24"
+                    VerticalScrollBarVisibility="Disabled"
+                    VerticalScrollMode="Disabled"
+                    IsScrollInertiaEnabled="False">
+                    <StackPanel Spacing="20">
+
+                    <TextBlock Text="AI-стилист" FontSize="24" FontWeight="SemiBold"
+                           HorizontalAlignment="Center" Foreground="White"/>
+
+                    <!-- Настройки -->
+                        <TextBlock Text="Пол" FontSize="14" Foreground="White" Opacity="0.8"/>
+                        <ComboBox SelectedIndex="{x:Bind ViewModel.GenderIndex, Mode=TwoWay}">
+                            <ComboBoxItem Content="Мужской"/>
+                            <ComboBoxItem Content="Женский"/>
+                        </ComboBox>
+
+                        <TextBlock Text="Возраст" FontSize="14" Foreground="White" Opacity="0.8"/>
+                        <NumberBox x:Name="AgeBox" Value="{x:Bind ViewModel.Age, Mode=TwoWay}"/>
+
+                        <TextBlock Text="Стиль" FontSize="14" Foreground="White" Opacity="0.8"/>
+                        <ComboBox x:Name="StyleBox"
+                              SelectedIndex="{x:Bind ViewModel.StyleIndex, Mode=TwoWay}">               
+                            <ComboBoxItem Content="Casual"/>
+                            <ComboBoxItem Content="Business"/>
+                            <ComboBoxItem Content="Sport"/>
+                        </ComboBox>
+
+                        <!-- Кнопка «Совет» -->
+                    <Button Content="Что мне надеть?" HorizontalAlignment="Stretch"
+                        Command="{Binding GetStyleAdviceCommand}"
+                        Style="{StaticResource AccentButtonStyle}"/>
+
+                    <!-- Сам совет -->
+                    <Border Background="#20000000" CornerRadius="12"
+                        Padding="16" MinHeight="120">
+                            <TextBox Text="{x:Bind ViewModel.StyleAdviceText, Mode=OneWay}"
+         IsReadOnly="True"
+         TextWrapping="Wrap"
+         AcceptsReturn="True"
+         MaxWidth="340"
+         MaxHeight="160"
+         Background="Transparent"
+         BorderThickness="0"
+         FontSize="15"
+         Foreground="White"/>
+                        </Border>
+
+                    <!-- Закрыть -->
+                    <Button Content="Закрыть" HorizontalAlignment="Stretch"
+                        Background="Transparent" BorderThickness="0"
+                        Click="CloseAiPanel_Click"/>
+                </StackPanel>
+            </ScrollViewer>
+            </Border>
         </Grid>
     </Grid>
 </Window>

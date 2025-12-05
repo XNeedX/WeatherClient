@@ -1,17 +1,19 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml.Controls;
+using ScottPlot;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using WeatherClient.Models;
 using WeatherClient.Services;
-using ScottPlot;
 
 namespace WeatherClient.ViewModels
 {
@@ -106,6 +108,12 @@ namespace WeatherClient.ViewModels
         [ObservableProperty] private ObservableCollection<string> searchHistory;
         [ObservableProperty] public ObservableCollection<string> favoriteCities;
         [ObservableProperty] private AppTheme _selectedTheme;
+
+        [ObservableProperty] private int genderIndex;
+        [ObservableProperty] private int age = 25;
+        [ObservableProperty] private int styleIndex;
+        [ObservableProperty] private string styleAdviceText = "Нажми кнопку";
+
 
         public ScottPlot.WinUI.WinUIPlot? ChartControl { get; set; }
         public ScottPlot.WinUI.WinUIPlot? HourlyPlotControl { get; set; }
@@ -814,6 +822,56 @@ namespace WeatherClient.ViewModels
             {
                 City = cityName;
                 GetWeatherCommand.Execute(null);
+            }
+        }
+
+        [RelayCommand]
+        private async Task GetStyleAdvice()
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(City) || _lastWeatherData == null)
+                {
+                    StyleAdviceText = "Сначала загрузите погоду 🙂";
+                    return;
+                }
+
+                var todayItem = _lastForecastData?.List?
+                                .OrderBy(f => f.DateTime)
+                                .FirstOrDefault();
+
+                var todayPop = todayItem?.PrecipitationProbability ?? 0;
+
+                StyleAdviceText = "Думаю...";
+
+                var req = new StyleAdviceRequest
+                {
+                    City = City,
+                    Temp = SettingsService.ConvertTemperature(_lastWeatherData.Main.Temp, SelectedTempUnit),
+                    WindSpeed = _lastWeatherData.Wind.Speed,
+                    Description = _lastWeatherData.Weather[0].Description,
+                    Gender = GenderIndex == 0 ? "мужчина" : "женщина",
+                    Age = Age,
+                    Pop = todayPop,
+                    Style = StyleIndex switch
+                    {
+                        0 => "casual",
+                        1 => "business",
+                        2 => "sport",
+                        _ => "grunge"
+                    }
+                };
+
+                StyleAdviceText = await OpenRouterService.AskWeatherStyleAsync(req);
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            {
+                StyleAdviceText = "Лимит исчерпан, попробуй позже.";
+            }
+            catch (Exception ex)
+            {
+                // дружное сообщение пользователю
+                StyleAdviceText = $"Ошибка: {ex.Message}";
             }
         }
     }

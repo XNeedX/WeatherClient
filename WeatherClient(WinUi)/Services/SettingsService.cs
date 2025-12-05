@@ -38,5 +38,21 @@ namespace WeatherClient.Services
             TemperatureUnit.Kelvin => celsius + 273.15,
             _ => celsius
         };
+
+        public static int GenderIndex
+        {
+            get => (int)(LocalSettings.Values["GenderIndex"] ?? 0);
+            set => LocalSettings.Values["GenderIndex"] = value;
+        }
+        public static int Age
+        {
+            get => (int)(LocalSettings.Values["Age"] ?? 25);
+            set => LocalSettings.Values["Age"] = value;
+        }
+        public static int StyleIndex
+        {
+            get => (int)(LocalSettings.Values["StyleIndex"] ?? 0);
+            set => LocalSettings.Values["StyleIndex"] = value;
+        }
     }
 }
